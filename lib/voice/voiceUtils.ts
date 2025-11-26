@@ -219,7 +219,24 @@ export class SpeechRecognitionManager {
     };
 
     this.recognition.onend = () => {
+      console.log("🔚 Recognition ended");
       this.isListening = false;
+      
+      // Auto-restart if we were listening (keeps session alive)
+      // This prevents the "mic stops working" issue after a few uses
+      if (this.onResult) {
+        console.log("🔄 Auto-restarting recognition to keep session alive");
+        setTimeout(() => {
+          if (!this.isListening && this.onResult) {
+            try {
+              this.recognition.start();
+              this.isListening = true;
+            } catch (e) {
+              console.log("Could not auto-restart:", e);
+            }
+          }
+        }, 100);
+      }
     };
   }
 
@@ -240,15 +257,48 @@ export class SpeechRecognitionManager {
     this.onResult = onResult;
     this.onError = onError;
 
+    // CRITICAL: Always stop first to prevent "already started" errors
     try {
-      this.recognition.start();
-      this.isListening = true;
-    } catch (error) {
-      console.error("Failed to start recognition:", error);
-      if (onError) {
-        onError(error instanceof Error ? error.message : "Unknown error");
+      if (this.isListening) {
+        console.log("🛑 Stopping existing recognition before starting new one");
+        this.recognition.stop();
       }
+    } catch (e) {
+      // Ignore errors from stopping
+      console.log("Ignored stop error:", e);
     }
+
+    // Wait a tiny bit for stop to complete, then start
+    setTimeout(() => {
+      try {
+        console.log("▶️ Starting speech recognition");
+        this.recognition.start();
+        this.isListening = true;
+      } catch (error) {
+        // Handle "already started" error by forcing a restart
+        const errorMsg = error instanceof Error ? error.message : String(error);
+        if (errorMsg.includes("already started")) {
+          console.log("⚠️ Recognition already started, forcing restart...");
+          try {
+            this.recognition.stop();
+            setTimeout(() => {
+              this.recognition.start();
+              this.isListening = true;
+            }, 100);
+          } catch (retryError) {
+            console.error("Failed to restart recognition:", retryError);
+            if (onError) {
+              onError("Failed to start speech recognition");
+            }
+          }
+        } else {
+          console.error("Failed to start recognition:", error);
+          if (onError) {
+            onError(errorMsg);
+          }
+        }
+      }
+    }, 50); // Small delay to ensure clean stop
   }
 
   /**

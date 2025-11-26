@@ -41,15 +41,17 @@ export async function POST(request: NextRequest) {
         );
       }
       
-      // Get user's API key
+      // Get user's API keys
       const userSettings = await getUserSettings(userId);
       const userApiKey = userSettings?.apiKeys?.anthropic;
+      const braveApiKey = userSettings?.apiKeys?.braveSearch;
       
       const content = await generateSkillContent(
         skillName,
         skillDescription,
         `${agent.name}: ${agent.description}`,
-        userApiKey // Pass user's custom API key
+        userApiKey, // Pass user's custom API key
+        braveApiKey // Pass Brave Search API key
       );
 
       return NextResponse.json({ content });

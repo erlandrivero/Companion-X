@@ -9,6 +9,31 @@ interface MessageBubbleProps {
   agentName?: string;
 }
 
+// Convert URLs in text to clickable links
+function linkifyText(text: string) {
+  // Regex to match URLs
+  const urlRegex = /(https?:\/\/[^\s]+)/g;
+  
+  const parts = text.split(urlRegex);
+  
+  return parts.map((part, index) => {
+    if (part.match(urlRegex)) {
+      return (
+        <a
+          key={index}
+          href={part}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-blue-500 hover:text-blue-600 dark:text-blue-400 dark:hover:text-blue-300 underline break-all"
+        >
+          {part}
+        </a>
+      );
+    }
+    return part;
+  });
+}
+
 export function MessageBubble({ message, agentName }: MessageBubbleProps) {
   const isUser = message.role === "user";
 
@@ -52,7 +77,9 @@ export function MessageBubble({ message, agentName }: MessageBubbleProps) {
               : "bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-gray-100 rounded-tl-sm"
           }`}
         >
-          <p className="text-sm whitespace-pre-wrap break-words">{message.content}</p>
+          <p className="text-sm whitespace-pre-wrap break-words">
+            {linkifyText(message.content)}
+          </p>
         </div>
 
         {/* Voice Indicator */}

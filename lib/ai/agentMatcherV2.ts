@@ -80,16 +80,27 @@ CRITICAL MATCHING RULES (FOLLOW IN ORDER):
   * "Madrid in Fahrenheit" = Still weather question, use Weather skill ✓
   * "Convert to Celsius" = Still weather question, use Weather skill ✓
 
-**STEP 3: Only Suggest New Skill If**
-- Agent has related expertise BUT
-- NO existing skill covers the question
-- Example: Weather expert (no European skill) + "Madrid" = Suggest European skill
+**STEP 3: ALWAYS Suggest New Skill If** (DEFAULT TO SUGGESTING SKILLS)
+- Agent matches BUT has NO existing skill that specifically covers the question
+- Question is about ANY specific topic, subtopic, or specialized area
+- RULE: If the agent doesn't have a skill with that exact topic name, SUGGEST IT
+- Examples:
+  * Dr. Lee agent + "neuro networks" (no neuro skill) = Suggest "Neural Networks" skill ✓ REQUIRED
+  * Dr. Lee agent + "Medium articles" (no publication skill) = Suggest "Published Articles" skill ✓ REQUIRED
+  * Weather expert + "Madrid" (no European skill) = Suggest "European Weather" skill ✓ REQUIRED
+  * Finance expert + "cryptocurrency" (no crypto skill) = Suggest "Cryptocurrency" skill ✓ REQUIRED
 
 **STEP 4: Only Suggest New Agent If**
 - Domain is completely different from ALL agents
 - Example: Weather expert + "cooking recipe" = New agent
 
-**PRIORITY ORDER**: Existing Skills > New Skill > New Agent`;
+**PRIORITY ORDER**: Existing Skills > **SUGGEST NEW SKILL** > New Agent
+
+**CRITICAL RULE**: 
+- If agent has 0-2 skills → ALWAYS suggest a skill for any specific topic
+- If question mentions a specific technology/topic/area → ALWAYS suggest a skill
+- Default behavior: SUGGEST SKILL unless agent already has that exact skill
+- Only let agent respond WITHOUT suggesting skill if they have 5+ skills covering the area`;
 
   const userPrompt = `Question: "${question}"
 
@@ -102,8 +113,13 @@ ${i}. ${agent.name}
    Existing Skills: ${agent.skills.length > 0 ? agent.skills.map(s => `\n     - ${s.name}: ${s.description}`).join('') : 'None'}
 `).join("\n")}
 
-IMPORTANT: Before suggesting a new agent or skill, CHECK if any agent's EXISTING SKILLS already cover this question.
-Example: If Dr. Storm has "European Weather" skill and question is about "Burgos" (Spanish city), USE THE EXISTING SKILL.
+CRITICAL RULES:
+1. Before suggesting a new agent or skill, CHECK if any agent's EXISTING SKILLS already cover this question
+2. If the question asks to create an agent that ALREADY EXISTS (same person/topic), DO NOT suggest a new agent - instead MATCH to the existing agent
+3. Examples:
+   - "Create agent for Dr. Ernesto Lee" + Dr. Lee agent exists = MATCH existing agent (index of Dr. Lee), confidence 95%
+   - "European Weather" skill exists + "Burgos" question = USE EXISTING SKILL
+   - "Create weather agent" + Dr. Storm exists = MATCH Dr. Storm, don't create duplicate
 
 Analyze and determine the best match.`;
 
@@ -189,6 +205,15 @@ Analyze and determine the best match.`;
       suggestNewSkill: result.suggestNewSkill,
       suggestion: result.suggestion,
       reasoning: result.reasoning,
+    });
+    
+    console.log("🔍 Skill suggestion analysis:", {
+      hasMatchedAgent: !!matchedAgent,
+      aiSuggestsSkill: result.suggestNewSkill,
+      suggestionText: result.suggestion,
+      agentHasSkills: matchedAgent ? skills.filter(s => 
+        agents.find(a => a._id?.toString() === matchedAgent?._id?.toString())
+      ).length : 0
     });
 
     // Check for duplicate skills before suggesting

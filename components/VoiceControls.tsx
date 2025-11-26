@@ -21,7 +21,7 @@ interface VoiceControlsProps {
   voiceService?: "elevenlabs" | "web-speech" | "auto";
 }
 
-export const VoiceControls = forwardRef<{ restartListening: () => void }, VoiceControlsProps>(
+export const VoiceControls = forwardRef<{ restartListening: () => void; clearTranscript: () => void }, VoiceControlsProps>(
   function VoiceControls({
     onTranscript,
     onSpeakText,
@@ -52,14 +52,12 @@ export const VoiceControls = forwardRef<{ restartListening: () => void }, VoiceC
   }, [externalVolume]);
   
   const recognitionManager = useRef<SpeechRecognitionManager | null>(null);
-  const vadRecognitionManager = useRef<SpeechRecognitionManager | null>(null); // For background VAD
   const fullTranscriptRef = useRef<string>("");
 
   useEffect(() => {
     // Initialize speech recognition
     if (typeof window !== "undefined" && SpeechRecognitionManager.isSupported()) {
       recognitionManager.current = new SpeechRecognitionManager();
-      vadRecognitionManager.current = new SpeechRecognitionManager();
     }
 
     return () => {
@@ -67,43 +65,31 @@ export const VoiceControls = forwardRef<{ restartListening: () => void }, VoiceC
       if (recognitionManager.current) {
         recognitionManager.current.stopListening();
       }
-      if (vadRecognitionManager.current) {
-        vadRecognitionManager.current.stopListening();
-      }
       stopSpeech();
     };
   }, []);
 
-  // Background VAD - always listening when audio is playing
+  // Keyboard interruption - press any key to interrupt AI voice
   useEffect(() => {
-    if (!vadRecognitionManager.current) return;
+    if (!isAudioPlaying) return;
 
-    if (isAudioPlaying && !isListening) {
-      // Start background listening for interruption
-      vadRecognitionManager.current.startListening(
-        (result) => {
-          // Any speech detected - interrupt!
-          if (result.transcript.trim().length > 0) {
-            console.log("VAD detected speech, interrupting AI voice");
-            if (onVoiceInterrupt) {
-              onVoiceInterrupt();
-            }
-            // Stop VAD and start main listening
-            vadRecognitionManager.current?.stopListening();
-            startListening();
-          }
-        },
-        (error) => {
-          console.error("VAD error:", error);
+    const handleKeyPress = (e: KeyboardEvent) => {
+      // Interrupt AI voice on any key press (except modifier keys)
+      if (!e.ctrlKey && !e.altKey && !e.metaKey && !e.shiftKey) {
+        console.log("🎹 Key press detected, interrupting AI voice");
+        if (onVoiceInterrupt) {
+          onVoiceInterrupt();
         }
-      );
-    } else {
-      // Stop background listening
-      vadRecognitionManager.current.stopListening();
-    }
+        // Start listening after interruption
+        if (!isListening) {
+          startListening();
+        }
+      }
+    };
 
+    window.addEventListener('keydown', handleKeyPress);
     return () => {
-      vadRecognitionManager.current?.stopListening();
+      window.removeEventListener('keydown', handleKeyPress);
     };
   }, [isAudioPlaying, isListening]);
 
@@ -114,11 +100,6 @@ export const VoiceControls = forwardRef<{ restartListening: () => void }, VoiceC
     if (!recognitionManager.current) {
       setError("Speech recognition not supported in this browser");
       return;
-    }
-
-    // Stop VAD if running
-    if (vadRecognitionManager.current) {
-      vadRecognitionManager.current.stopListening();
     }
 
     // CRITICAL: Stop any playing voice FIRST
@@ -179,6 +160,15 @@ export const VoiceControls = forwardRef<{ restartListening: () => void }, VoiceC
     }
   };
 
+  /**
+   * Clear transcript without stopping/starting listening
+   */
+  const clearTranscript = () => {
+    console.log("🧹 Clearing transcript");
+    setTranscript("");
+    fullTranscriptRef.current = "";
+  };
+
   // Expose methods to parent component
   useImperativeHandle(ref, () => ({
     restartListening: () => {
@@ -193,6 +183,9 @@ export const VoiceControls = forwardRef<{ restartListening: () => void }, VoiceC
       } else {
         startListening();
       }
+    },
+    clearTranscript: () => {
+      clearTranscript();
     }
   }));
 
@@ -358,10 +351,11 @@ export const VoiceControls = forwardRef<{ restartListening: () => void }, VoiceC
         onClick={() => {
           // If audio is playing (from parent) or speaking (local), stop and listen
           if (isAudioPlaying || isSpeaking) {
+            console.log("🎤 Mic button clicked during AI speech - interrupting");
             stopSpeaking();
             // Notify parent to stop audio
-            if (onListeningChange) {
-              onListeningChange(true); // This will trigger parent to stop audio
+            if (onVoiceInterrupt) {
+              onVoiceInterrupt();
             }
             setTimeout(() => startListening(), 100); // Small delay to ensure voice stops
           } else if (isListening) {

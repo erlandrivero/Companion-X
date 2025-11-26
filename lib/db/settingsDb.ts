@@ -8,6 +8,7 @@ export interface UserSettings {
     anthropic?: string;
     elevenLabs?: string;
     elevenLabsVoiceId?: string;
+    braveSearch?: string;
   };
   voice?: {
     speed: number;

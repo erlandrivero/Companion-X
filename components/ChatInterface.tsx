@@ -194,7 +194,14 @@ export function ChatInterface({ sessionId: initialSessionId, onAgentCreated }: C
               } else if (data.type === "skill_suggestion") {
                 // Show skill suggestion dialog and store the question
                 console.log("🎓 Received skill suggestion:", data.suggestion);
-                setSkillSuggestion(data.suggestion);
+                // Only set if not already showing a skill suggestion (prevent duplicates)
+                setSkillSuggestion(prev => {
+                  if (prev) {
+                    console.log("⚠️ Skill suggestion already active, ignoring duplicate");
+                    return prev;
+                  }
+                  return data.suggestion;
+                });
                 setPendingQuestion(messageText); // Store the original question
               } else if (data.type === "waiting_for_decision") {
                 // Stop loading - waiting for user to decide on agent creation
@@ -266,15 +273,17 @@ export function ChatInterface({ sessionId: initialSessionId, onAgentCreated }: C
                                        fullResponse.includes("CORE CAPABILITIES:") ||
                                        agentCreatedData !== null;
       
-      console.log("Voice check:", { 
+      console.log("🎤 Voice synthesis check:", { 
         voiceEnabled, 
         hasResponse: !!fullResponse, 
         responseLength: fullResponse.length,
-        isAgentCreation: isAgentCreationResponse 
+        isAgentCreation: isAgentCreationResponse,
+        trimmedLength: fullResponse.trim().length
       });
       
       if (voiceEnabled && fullResponse && fullResponse.trim().length > 0 && !isAgentCreationResponse) {
-        console.log("Starting voice synthesis for:", fullResponse.substring(0, 50) + "...");
+        console.log("✅ Starting voice synthesis for:", fullResponse.substring(0, 50) + "...");
+        console.log("📊 Full response length:", fullResponse.length);
         try {
           // Try ElevenLabs first (server-side)
           const voiceResponse = await fetch("/api/voice/synthesize", {
@@ -524,37 +533,13 @@ export function ChatInterface({ sessionId: initialSessionId, onAgentCreated }: C
       
       // Wait before sending (use user's delay setting)
       voiceSendTimeoutRef.current = setTimeout(() => {
-        // Send with the transcript value
-        const userMessage: Message = {
-          role: "user",
-          content: transcript.trim(),
-          agentUsed: null,
-          timestamp: new Date(),
-          voiceEnabled,
-        };
-
-        setMessages((prev) => [...prev, userMessage]);
+        // Use the main sendMessage function to ensure all logic is consistent
+        sendMessage(transcript.trim());
         
-        // Reset textarea height
-        if (inputRef.current) {
-          inputRef.current.style.height = '48px';
+        // Clear the voice transcript after sending to prevent it from persisting
+        if (voiceControlsRef.current) {
+          voiceControlsRef.current.clearTranscript();
         }
-        
-        setIsLoading(true);
-
-        // Add placeholder for AI response
-        const assistantMessageIndex = messages.length + 1;
-        const assistantMessage: Message = {
-          role: "assistant",
-          content: "",
-          agentUsed: null,
-          timestamp: new Date(),
-          voiceEnabled,
-        };
-        setMessages((prev) => [...prev, assistantMessage]);
-
-        // Call the API
-        sendVoiceMessage(transcript.trim(), assistantMessageIndex);
       }, autoSendDelay * 1000); // Use user's delay setting (convert to ms)
     }
   };
@@ -805,15 +790,26 @@ export function ChatInterface({ sessionId: initialSessionId, onAgentCreated }: C
         setSkillSuggestion(null);
         
         // Re-send the pending question with the enhanced agent
+        // BUT: Don't re-send if it was an explicit skill creation request (to prevent loops)
         if (pendingQuestion) {
-          console.log("🔄 Re-sending question with enhanced agent:", pendingQuestion);
-          const questionToSend = pendingQuestion;
-          setPendingQuestion(null);
+          const isExplicitSkillRequest = (
+            (pendingQuestion.toLowerCase().includes('add') || pendingQuestion.toLowerCase().includes('create')) &&
+            (pendingQuestion.toLowerCase().includes('skill') || pendingQuestion.toLowerCase().includes('skills'))
+          );
           
-          // Wait a moment for skill to be fully loaded, then send
-          setTimeout(() => {
-            sendMessage(questionToSend);
-          }, 500);
+          if (isExplicitSkillRequest) {
+            console.log("⏭️ Skipping re-send of explicit skill request to prevent loop");
+            setPendingQuestion(null);
+          } else {
+            console.log("🔄 Re-sending question with enhanced agent:", pendingQuestion);
+            const questionToSend = pendingQuestion;
+            setPendingQuestion(null);
+            
+            // Wait a moment for skill to be fully loaded, then send
+            setTimeout(() => {
+              sendMessage(questionToSend);
+            }, 500);
+          }
         }
       } else {
         console.error("Failed to create skill");
@@ -833,7 +829,10 @@ export function ChatInterface({ sessionId: initialSessionId, onAgentCreated }: C
       const response = await fetch("/api/agents/create-suggested", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ topic: agentSuggestion.topic }),
+        body: JSON.stringify({ 
+          topic: agentSuggestion.topic,
+          originalQuestion: pendingQuestion || "" // Send original question for context
+        }),
       });
 
       if (response.ok) {
@@ -1189,19 +1188,22 @@ export function ChatInterface({ sessionId: initialSessionId, onAgentCreated }: C
 
       {/* Agent Creation Loading Overlay */}
       {isCreatingAgent && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center z-[100]">
-          <div className="bg-white dark:bg-gray-800 rounded-lg p-8 shadow-2xl max-w-md mx-4">
-            <div className="flex flex-col items-center gap-4">
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[100] flex items-center justify-center">
+          <div className="bg-white dark:bg-gray-800 rounded-2xl p-8 shadow-2xl max-w-md mx-4">
+            <div className="flex flex-col items-center gap-6">
               <div className="relative">
-                <Loader2 className="w-16 h-16 text-purple-500 animate-spin" />
-                <Sparkles className="w-8 h-8 text-purple-400 absolute top-1/2 left-1/2 transform -translate-x-1/2 -translate-y-1/2" />
+                <div className="w-20 h-20 border-4 border-purple-200 dark:border-purple-900 rounded-full"></div>
+                <div className="w-20 h-20 border-4 border-purple-600 border-t-transparent rounded-full animate-spin absolute top-0 left-0"></div>
               </div>
               <div className="text-center">
-                <h3 className="text-xl font-bold text-gray-900 dark:text-white mb-2">
+                <p className="text-xl font-bold text-gray-900 dark:text-white mb-2">
                   Creating Agent...
-                </h3>
+                </p>
                 <p className="text-sm text-gray-600 dark:text-gray-400">
-                  Generating specialized agent with expertise and capabilities
+                  AI is generating specialized expertise and capabilities
+                </p>
+                <p className="text-xs text-gray-500 dark:text-gray-500 mt-2">
+                  This may take 10-20 seconds
                 </p>
               </div>
             </div>

@@ -16,6 +16,7 @@ import { getApiKeys } from "@/lib/db/settingsDb";
 import { checkUsageLimits, recordUsage } from "@/lib/db/usageLimitsDb";
 import { getUserSettings } from "@/lib/db/settingsDb";
 import { correctTyposAndVoiceErrors } from "@/lib/ai/typoCorrection";
+import { searchWeb, formatSearchResults } from "@/lib/search/webSearch";
 
 export async function POST(request: NextRequest) {
   try {
@@ -125,6 +126,107 @@ export async function POST(request: NextRequest) {
     // Get user's agents
     const agents = await getUserAgents(userId);
 
+    // Check if user is explicitly requesting to add a skill (only if not skipping agent matching)
+    // This prevents infinite loops when user declines skill suggestion
+    if (!skipAgentMatching) {
+      const messageLowerForSkillCheck = correctedMessage.toLowerCase();
+      const isExplicitSkillRequest = (
+        (messageLowerForSkillCheck.includes('add') || messageLowerForSkillCheck.includes('create')) &&
+        (messageLowerForSkillCheck.includes('skill') || messageLowerForSkillCheck.includes('skills'))
+      );
+      
+      if (isExplicitSkillRequest) {
+      console.log("🎯 Detected explicit skill creation request:", correctedMessage);
+      
+      // Extract skill topic from message (everything after "skill" or before "to")
+      let skillTopic = "";
+      const patterns = [
+        /(?:add|create).*?skill.*?(?:about|on|for|called|named)\s+([^.!?,]+?)(?:\s+to|\s+for|$)/i,
+        /(?:add|create).*?(?:a|an|the)\s+([^.!?,]+?)\s+skill/i,
+        /skill.*?(?:about|on|for|called|named)\s+([^.!?,]+?)(?:\s+to|\s+for|$)/i,
+      ];
+      
+      for (const pattern of patterns) {
+        const match = correctedMessage.match(pattern);
+        if (match && match[1]) {
+          skillTopic = match[1].trim();
+          break;
+        }
+      }
+      
+      if (!skillTopic) {
+        // Fallback: take text between "skill" and "to"
+        const fallbackMatch = correctedMessage.match(/skill\s+(.+?)\s+to/i);
+        skillTopic = fallbackMatch ? fallbackMatch[1].trim() : "New Skill";
+      }
+      
+      console.log("📝 Extracted skill topic:", skillTopic);
+      
+      // Find which agent to add skill to
+      const agentMatch = agents.find(a => {
+        const agentNameLower = a.name.toLowerCase();
+        const firstPart = a.name.split('-')[0].trim().toLowerCase();
+        return messageLowerForSkillCheck.includes(agentNameLower) || 
+               messageLowerForSkillCheck.includes(firstPart);
+      });
+      
+      if (agentMatch) {
+        console.log(`✅ Triggering skill suggestion: "${skillTopic}" for agent "${agentMatch.name}"`);
+        
+        // Trigger skill suggestion modal
+        const suggestedSkill = {
+          agentId: agentMatch._id!.toString(),
+          agentName: agentMatch.name,
+          skillName: skillTopic,
+          reasoning: `User explicitly requested to add this skill`,
+        };
+        
+        // IMPORTANT: Return immediately to prevent further processing
+        if (stream) {
+          return new Response(
+            new ReadableStream({
+              start(controller) {
+                const encoder = new TextEncoder();
+                controller.enqueue(
+                  encoder.encode(
+                    `data: ${JSON.stringify({
+                      type: "skill_suggestion",
+                      suggestion: suggestedSkill,
+                    })}\n\n`
+                  )
+                );
+                controller.enqueue(
+                  encoder.encode(
+                    `data: ${JSON.stringify({
+                      type: "waiting_for_decision",
+                      message: "Please decide whether to add the suggested skill.",
+                    })}\n\n`
+                  )
+                );
+                controller.close();
+              },
+            }),
+            {
+              headers: {
+                "Content-Type": "text/event-stream",
+                "Cache-Control": "no-cache",
+                Connection: "keep-alive",
+              },
+            }
+          );
+        }
+        
+        return NextResponse.json({
+          response: "",
+          skillSuggestion: suggestedSkill,
+          waitingForDecision: true,
+        });
+      }
+      // If no agent found, continue with normal flow
+      console.log("⚠️ Could not find agent in explicit skill request, continuing with normal flow");
+    }
+  }
+    
     let matchResult;
     
     // Skip agent matching if flag is set (user declined suggestion)
@@ -275,9 +377,121 @@ export async function POST(request: NextRequest) {
     if (agentUsed) {
       const agentSkills = await getAgentSkills(agentUsed._id!.toString());
       if (agentSkills.length > 0) {
-        matchedSkills = await matchSkillsToMessage(correctedMessage, agentSkills);
+        matchedSkills = await matchSkillsToMessage(correctedMessage, agentSkills, userApiKey);
       }
     }
+
+    // Perform web search to get current information
+    console.log("🔍 Performing web search for current information...");
+    const braveApiKey = userSettings?.apiKeys?.braveSearch;
+    
+    // Primary search - general information
+    const searchResults = await searchWeb(correctedMessage, 3, braveApiKey);
+    
+    // Search for published content (articles, blog posts, papers)
+    // If asking about publications/articles and an agent is being used, search for that agent's name + Medium
+    const messageLower = correctedMessage.toLowerCase();
+    const isAskingAboutPublications = messageLower.includes('publication') || 
+                                       messageLower.includes('article') || 
+                                       messageLower.includes('medium') ||
+                                       messageLower.includes('wrote') ||
+                                       messageLower.includes('published') ||
+                                       messageLower.includes('blog');
+    
+    console.log("🔍 Publication search check:", { 
+      hasAgent: !!agentUsed, 
+      agentName: agentUsed?.name,
+      isAskingAboutPublications,
+      message: correctedMessage 
+    });
+    
+    let publishedResults: Awaited<ReturnType<typeof searchWeb>>;
+    if (agentUsed && isAskingAboutPublications) {
+      // Extract person name from agent name (e.g., "Dr. Ernesto Lee - Title" -> "Ernesto Lee")
+      const fullName = agentUsed.name.split('-')[0].trim().replace(/^(Dr\.|Professor|Mr\.|Ms\.|Mrs\.)\s*/i, '');
+      const nameParts = fullName.split(' ');
+      const firstName = nameParts[0];
+      const lastName = nameParts[nameParts.length - 1];
+      
+      // Try multiple search strategies to find Medium articles
+      console.log("📰 Trying multiple search strategies for Medium articles...");
+      
+      // Strategy 1: Full name
+      const query1 = `"${fullName}" site:medium.com`;
+      console.log("  Strategy 1:", query1);
+      publishedResults = await searchWeb(query1, 3, braveApiKey);
+      
+      // Strategy 2: First and last name separately (if no results from strategy 1)
+      if (publishedResults.results.length === 0) {
+        const query2 = `${firstName} ${lastName} site:medium.com`;
+        console.log("  Strategy 2:", query2);
+        const results2 = await searchWeb(query2, 3, braveApiKey);
+        publishedResults = results2;
+      }
+      
+      // Strategy 3: Just last name + medium (if still no results)
+      if (publishedResults.results.length === 0) {
+        const query3 = `${lastName} site:medium.com author`;
+        console.log("  Strategy 3:", query3);
+        const results3 = await searchWeb(query3, 3, braveApiKey);
+        publishedResults = results3;
+      }
+      
+      // Strategy 4: Broader Medium search with context (last resort)
+      if (publishedResults.results.length === 0) {
+        const query4 = `${fullName} medium article AI data`;
+        console.log("  Strategy 4 (broad):", query4);
+        const results4 = await searchWeb(query4, 5, braveApiKey);
+        publishedResults = results4;
+      }
+      
+      console.log(`📊 Found ${publishedResults.results.length} Medium articles after trying multiple strategies`);
+    } else {
+      const generalQuery = `${correctedMessage} site:medium.com OR site:towardsdatascience.com OR article OR blog`;
+      console.log("📰 Searching for general published content");
+      publishedResults = await searchWeb(generalQuery, 5, braveApiKey);
+    }
+    
+    // Search for academic/research content
+    const academicQuery = `${correctedMessage} research OR paper OR study OR publication`;
+    console.log("📚 Searching for academic and research content...");
+    const academicResults = await searchWeb(academicQuery, 2, braveApiKey);
+    
+    // Combine all results, removing duplicates by URL
+    const seenUrls = new Set<string>();
+    const uniqueResults = [
+      ...searchResults.results,
+      ...publishedResults.results,
+      ...academicResults.results
+    ].filter(result => {
+      if (seenUrls.has(result.url)) {
+        return false;
+      }
+      seenUrls.add(result.url);
+      return true;
+    });
+    
+    const allResults = {
+      results: uniqueResults,
+      query: correctedMessage,
+      totalResults: uniqueResults.length
+    };
+    
+    const webContext = allResults.results.length > 0 
+      ? `\n\nCURRENT WEB INFORMATION (Articles, Publications, and General Info):\n${formatSearchResults(allResults)}\n\nCRITICAL INSTRUCTIONS FOR USING WEB SOURCES:
+1. When referencing articles or publications, ALWAYS include the full URL from the search results above
+2. Format references as: "I wrote about this in [Article Title] (URL: [exact URL from search results])"
+3. If Medium articles are found in the search results, LIST THEM with their URLs
+4. Prioritize Medium and published articles over general information
+5. If the user asks about your publications and Medium articles are found, provide SPECIFIC article titles and URLs
+6. Example: "I've published several articles on Medium, including 'Building AI Agents' (URL: https://medium.com/@author/building-ai-agents-abc123) and 'Data Analytics Best Practices' (URL: https://medium.com/@author/data-analytics-xyz789)"
+7. DO NOT say "I don't have access" if the search results contain the information - USE THE SEARCH RESULTS
+8. If no Medium articles are found in search results, then you can say you don't have specific links available
+
+Use these sources to provide accurate, well-cited responses with actual URLs.`
+      : "";
+    
+    console.log(`📊 Web search: ${allResults.results.length} unique results (${searchResults.results.length} general, ${publishedResults.results.length} published, ${academicResults.results.length} academic)`);
 
     // Generate response using matched/created agent or general assistant
     // Adjust base prompt based on user's response length preference
@@ -300,7 +514,7 @@ export async function POST(request: NextRequest) {
 `;
 
     let systemPrompt = agentUsed?.systemPrompt 
-      ? formattingRules + agentUsed.systemPrompt
+      ? formattingRules + agentUsed.systemPrompt + webContext
       : formattingRules + `You are a helpful voice assistant. Answer questions clearly and conversationally.
 
 ABSOLUTELY FORBIDDEN (will break voice synthesis):
@@ -326,7 +540,7 @@ WRONG EXAMPLES (DO NOT DO THIS):
 ❌ "- Shiners" - has bullet point
 ❌ "Quick Answer:" - has section header
 
-Speak naturally. No formatting. Ever.`;
+Speak naturally. No formatting. Ever.` + webContext;
     
     // Enhance system prompt with matched skills
     if (matchedSkills.length > 0) {
@@ -521,18 +735,9 @@ async function handleStreamingResponse(params: {
           console.log("📭 No agent suggestion to send");
         }
 
-        // Send skill suggestion if applicable
-        if (suggestedSkill) {
-          controller.enqueue(
-            encoder.encode(
-              `data: ${JSON.stringify({
-                type: "skill_suggestion",
-                suggestion: suggestedSkill,
-              })}\n\n`
-            )
-          );
-        }
-
+        // Note: Skill suggestions are handled earlier in the flow (before response generation)
+        // to allow user to decide before the agent responds
+        
         // Send agent info if one is being used
         if (agentUsed) {
           controller.enqueue(

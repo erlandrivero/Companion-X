@@ -3,6 +3,8 @@
 import { Agent } from "@/types/agent";
 import { Bot, TrendingUp, Clock, Zap, Trash2, Edit } from "lucide-react";
 import { formatRelativeTime, formatNumber } from "@/lib/utils/formatters";
+import { DeleteConfirmModal } from "./DeleteConfirmModal";
+import { useState } from "react";
 
 interface AgentCardProps {
   agent: Agent;
@@ -13,11 +15,15 @@ interface AgentCardProps {
 }
 
 export function AgentCard({ agent, onClick, onDelete, onEdit, isActive = false }: AgentCardProps) {
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
+
   const handleDelete = (e: React.MouseEvent) => {
     e.stopPropagation();
-    if (confirm(`Delete "${agent.name}"? This action cannot be undone.`)) {
-      onDelete?.();
-    }
+    setShowDeleteModal(true);
+  };
+
+  const confirmDelete = () => {
+    onDelete?.();
   };
 
   const handleEdit = (e: React.MouseEvent) => {
@@ -104,6 +110,17 @@ export function AgentCard({ agent, onClick, onDelete, onEdit, isActive = false }
           </button>
         )}
       </div>
+
+      {/* Delete Confirmation Modal */}
+      <DeleteConfirmModal
+        isOpen={showDeleteModal}
+        onClose={() => setShowDeleteModal(false)}
+        onConfirm={confirmDelete}
+        title="Delete Agent?"
+        message="Are you sure you want to delete this agent? All conversations and data associated with this agent will be permanently removed."
+        itemName={agent.name}
+        type="agent"
+      />
     </div>
   );
 }

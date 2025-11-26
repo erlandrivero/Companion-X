@@ -6,6 +6,7 @@
 import { sendMessageHaiku } from "./claude";
 import { Agent } from "@/types/agent";
 import { AgentSkill } from "@/types/skill";
+import { searchWeb, formatSearchResults } from "@/lib/search/webSearch";
 
 interface SkillSuggestion {
   name: string;
@@ -93,13 +94,24 @@ export async function generateSkillContent(
   skillName: string,
   skillDescription: string,
   agentContext: string,
-  apiKey?: string
+  apiKey?: string,
+  braveApiKey?: string
 ): Promise<string> {
+  // Perform web search to get current information about the skill topic
+  console.log("🔍 Searching web for skill information:", skillName);
+  const searchQuery = `${skillName} ${skillDescription}`;
+  const searchResults = await searchWeb(searchQuery, 5, braveApiKey);
+  const webContext = searchResults.results.length > 0
+    ? `\n\nWEB SEARCH RESULTS:\n${formatSearchResults(searchResults)}\n\nUse this current information to create an accurate, well-informed skill.`
+    : "";
+  
+  console.log(`📊 Found ${searchResults.results.length} search results for skill`);
+
   const prompt = `Generate a comprehensive skill document in SKILL.md format.
 
 SKILL NAME: ${skillName}
 DESCRIPTION: ${skillDescription}
-AGENT CONTEXT: ${agentContext}
+AGENT CONTEXT: ${agentContext}${webContext}
 
 Create a detailed skill document following this structure:
 

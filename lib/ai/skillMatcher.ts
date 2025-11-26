@@ -66,7 +66,8 @@ function extractListItems(content: string, header: string): string[] {
  */
 export async function matchSkillsToMessage(
   message: string,
-  skills: AgentSkill[]
+  skills: AgentSkill[],
+  apiKey?: string
 ): Promise<SkillMatchResult[]> {
   if (skills.length === 0) {
     return [];
@@ -123,6 +124,7 @@ Which skills are most relevant? Consider geographic and semantic coverage.`;
       systemPrompt,
       maxTokens: 1024,
       temperature: 0.3,
+      apiKey,
     });
 
     const jsonMatch = response.content.match(/\{[\s\S]*\}/);
