@@ -1,0 +1,1160 @@
+# AI Agent Profile Manager - Complete Project Documentation
+
+## Project Overview
+An intelligent assistant that creates, stores, and manages specialized AI agent profiles. The system routes questions to appropriate agents and evolves profiles over time through reasoning and learning.
+
+---
+
+## Tech Stack
+
+### Frontend
+- **Framework**: Next.js 15 (App Router)
+- **Language**: TypeScript
+- **Styling**: Tailwind CSS
+- **UI Components**: shadcn/ui
+- **Voice**: Web Speech API + ElevenLabs API
+
+### Backend
+- **Serverless Functions**: Netlify Functions
+- **AI Model**: Claude API (Anthropic)
+  - **Haiku 4.5** for chat/conversations (cost-efficient)
+  - **Sonnet 4.5** for agent profile creation/evolution (high quality)
+  - **Prompt Caching** enabled for all agent system prompts
+- **Database**: MongoDB Atlas (Free Tier)
+- **Authentication**: NextAuth.js v5 with Google OAuth
+- **Voice**: ElevenLabs API (primary) with Web Speech API fallback
+- **Version Control**: GitHub (private repo supported)
+- **Cost Tracking**: Built-in usage monitoring
+
+### Deployment
+- **Platform**: Netlify
+- **CI/CD**: Git-based deployment
+
+---
+
+## Project Structure
+
+```
+ai-agent-manager/
+├── app/
+│   ├── layout.tsx                 # Root layout
+│   ├── page.tsx                   # Main chat interface
+│   ├── dashboard/
+│   │   └── page.tsx              # Usage & cost monitoring dashboard
+│   ├── login/
+│   │   └── page.tsx              # Login page
+│   ├── api/
+│   │   ├── auth/
+│   │   │   └── [...nextauth]/route.ts  # NextAuth configuration
+│   │   ├── chat/route.ts         # Main chat endpoint (uses Haiku)
+│   │   ├── agents/
+│   │   │   ├── create/route.ts   # Create agent (uses Sonnet 4.5)
+│   │   │   ├── list/route.ts     # List all agents
+│   │   │   ├── update/route.ts   # Update agent (uses Sonnet 4.5)
+│   │   │   └── [id]/route.ts     # Get specific agent
+│   │   ├── voice/
+│   │   │   └── synthesize/route.ts # Text-to-speech (ElevenLabs + fallback)
+│   │   ├── usage/
+│   │   │   ├── track/route.ts    # Track API usage
+│   │   │   └── stats/route.ts    # Get usage statistics
+│   │   └── export/route.ts       # Export conversation/response
+├── components/
+│   ├── ChatInterface.tsx         # Main chat UI
+│   ├── VoiceControls.tsx         # Voice input/output controls
+│   ├── AgentList.tsx             # Display agent profiles
+│   ├── AgentCard.tsx             # Individual agent display
+│   ├── ExportButton.tsx          # Export functionality
+│   ├── LoginButton.tsx           # Google login button
+│   ├── UserMenu.tsx              # User profile dropdown
+│   ├── UsageDashboard.tsx        # Cost monitoring component
+│   ├── CostAlert.tsx             # Alert when approaching limits
+│   └── ProtectedRoute.tsx        # Route protection wrapper
+├── lib/
+│   ├── mongodb.ts                # MongoDB connection
+│   ├── claude.ts                 # Claude API wrapper with caching
+│   ├── auth.ts                   # NextAuth configuration
+│   ├── agents/
+│   │   ├── agentMatcher.ts       # Match question to agent
+│   │   ├── agentCreator.ts       # Agent creation logic (Sonnet 4.5)
+│   │   └── agentEvolution.ts     # Profile improvement logic (Sonnet 4.5)
+│   ├── usage/
+│   │   ├── usageTracker.ts       # Track API calls and costs
+│   │   └── costCalculator.ts     # Calculate costs per request
+│   └── utils/
+│       ├── voiceUtils.ts         # Voice with ElevenLabs + Web Speech fallback
+│       └── exportUtils.ts        # Document export utilities
+├── types/
+│   ├── agent.ts                  # Agent profile types
+│   ├── conversation.ts           # Conversation types
+│   ├── user.ts                   # User types
+│   └── usage.ts                  # Usage tracking types
+├── middleware.ts                 # Auth middleware for protected routes
+├── netlify/
+│   └── functions/                # Netlify serverless functions
+├── public/
+├── .env.local                    # Environment variables
+├── .gitignore                    # Git ignore file
+├── netlify.toml                  # Netlify configuration
+├── package.json
+└── tsconfig.json
+```
+
+---
+
+## Database Schema (MongoDB)
+
+### Agent Profile Collection
+```typescript
+{
+  _id: ObjectId,
+  name: string,                    // "Financial Advisor", "Health Coach"
+  description: string,             // What this agent specializes in
+  expertise: string[],             // ["investment", "retirement planning"]
+  systemPrompt: string,            // The specialized prompt for this agent
+  knowledgeBase: {
+    facts: string[],               // Key facts this agent knows
+    sources: string[],             // Reference materials
+    lastUpdated: Date
+  },
+  capabilities: string[],          // What this agent can do
+  conversationStyle: {
+    tone: string,                  // "professional", "friendly", "casual"
+    vocabulary: string,            // "technical", "simple", "mixed"
+    responseLength: string         // "concise", "detailed", "adaptive"
+  },
+  performanceMetrics: {
+    questionsHandled: number,
+    successRate: number,
+    avgResponseTime: number,
+    lastUsed: Date
+  },
+  evolutionHistory: [
+    {
+      date: Date,
+      improvement: string,
+      reason: string,
+      changedFields: string[]
+    }
+  ],
+  createdAt: Date,
+  updatedAt: Date,
+  version: number
+}
+```
+
+### Conversation History Collection
+```typescript
+{
+  _id: ObjectId,
+  sessionId: string,
+  userId: string,                  // Google user ID
+  userEmail: string,               // User's email from Google
+  messages: [
+    {
+      role: "user" | "assistant" | "system",
+      content: string,
+      agentUsed: ObjectId | null,  // Which agent responded
+      timestamp: Date,
+      voiceEnabled: boolean
+    }
+  ],
+  agentsSuggested: ObjectId[],     // Agents recommended for creation
+  createdAt: Date,
+  updatedAt: Date
+}
+```
+
+### User Collection
+```typescript
+{
+  _id: ObjectId,
+  googleId: string,                // Unique Google user ID
+  email: string,
+  name: string,
+  image: string,                   // Profile picture from Google
+  personalAgents: ObjectId[],      // User's custom agents
+  sharedAgents: ObjectId[],        // Access to shared agents
+  preferences: {
+    voiceEnabled: boolean,
+    defaultVoice: string,
+    theme: "light" | "dark",
+    exportFormat: "pdf" | "docx" | "txt"
+  },
+  subscription: {
+    tier: "free" | "pro" | "enterprise",
+    startDate: Date,
+    endDate: Date
+  },
+  usage: {
+    currentMonth: {
+      claudeHaikuTokens: number,
+      claudeSonnetTokens: number,
+      elevenLabsCharacters: number,
+      totalCost: number,
+      requestCount: number
+    },
+    limits: {
+      monthlyBudget: number,        // Dollar limit per month
+      alertThreshold: number,       // Alert at % of budget
+      hardLimit: boolean            // Block when budget exceeded
+    },
+    history: [
+      {
+        month: string,              // "2024-11"
+        claudeHaikuTokens: number,
+        claudeSonnetTokens: number,
+        elevenLabsCharacters: number,
+        totalCost: number,
+        requestCount: number
+      }
+    ]
+  },
+  createdAt: Date,
+  lastLogin: Date
+}
+```
+
+### API Usage Log Collection (NEW)
+```typescript
+{
+  _id: ObjectId,
+  userId: string,
+  timestamp: Date,
+  service: "claude-haiku" | "claude-sonnet" | "elevenlabs" | "web-speech",
+  endpoint: string,                // "/api/chat", "/api/agents/create"
+  requestType: "chat" | "agent-creation" | "agent-evolution" | "voice",
+  tokens: {
+    input: number,
+    output: number,
+    cached: number                 // Cached prompt tokens
+  },
+  characters: number,              // For ElevenLabs
+  cost: number,                    // Calculated cost in USD
+  success: boolean,
+  errorMessage?: string,
+  metadata: {
+    agentId?: string,
+    conversationId?: string,
+    model: string,
+    cachingEnabled: boolean
+  }
+}
+```
+
+---
+
+## Core System Prompts
+
+### Main Orchestrator Prompt
+```
+You are an intelligent AI assistant orchestrator. Your role is to:
+
+1. ANALYZE incoming questions and determine if a specialized agent profile exists
+2. MATCH questions to the most appropriate agent profile based on expertise
+3. RECOMMEND creating new agent profiles when none are suitable
+4. ROUTE questions to the correct agent for specialized responses
+5. EVOLVE agent profiles by identifying improvement opportunities
+
+When a user asks a question:
+- First check if any existing agent profiles match (check expertise, description, capabilities)
+- If a good match exists (>70% relevance), route to that agent
+- If no good match, inform user: "I don't have a specialized agent for this topic. Would you like me to create a [TOPIC] agent profile?"
+- If multiple agents could handle it, choose the best fit or ask user
+
+When creating agent profiles:
+- Extract the domain/expertise from the conversation
+- Define clear capabilities and knowledge boundaries
+- Create a specialized system prompt for that agent
+- Set appropriate conversation style
+
+When evolving agents:
+- Monitor for gaps in agent knowledge during conversations
+- Identify when an agent gives suboptimal responses
+- Suggest improvements: "I noticed the [AGENT] could be improved by adding [CAPABILITY]. Should I update it?"
+- Track evolution history for transparency
+```
+
+### Agent Profile Template
+```
+You are a specialized [AGENT_NAME] agent with expertise in [EXPERTISE_AREAS].
+
+Your role: [DESCRIPTION]
+
+Your capabilities include:
+- [CAPABILITY_1]
+- [CAPABILITY_2]
+- [CAPABILITY_3]
+
+Knowledge base:
+[KNOWLEDGE_BASE_FACTS]
+
+Response style:
+- Tone: [TONE]
+- Vocabulary level: [VOCABULARY]
+- Response length: [LENGTH_PREFERENCE]
+
+Guidelines:
+- Stay within your area of expertise
+- If a question is outside your domain, acknowledge it and suggest the user ask for a different specialized agent
+- Provide accurate, helpful information based on your knowledge base
+- Be [TONE] in your responses
+- If you're uncertain, say so rather than guessing
+```
+
+---
+
+## Windsurf Prompts for Development
+
+### Phase 0: Authentication Setup (NEW - DO THIS FIRST)
+```
+Set up NextAuth.js v5 with Google OAuth authentication:
+
+1. Install dependencies:
+   - next-auth@beta (v5)
+   - @auth/mongodb-adapter
+
+2. Create lib/auth.ts with NextAuth configuration:
+   - Google Provider setup
+   - MongoDB adapter for session storage
+   - Callbacks for JWT and session
+   - Proper TypeScript types
+
+3. Create app/api/auth/[...nextauth]/route.ts:
+   - Export NextAuth handlers for GET and POST
+
+4. Create middleware.ts at root:
+   - Protect all routes except /login and /api/auth/*
+   - Redirect unauthenticated users to /login
+   - Allow authenticated users to access app
+
+5. Create app/login/page.tsx:
+   - Beautiful login page with Google sign-in button
+   - Branding and description of the app
+   - "Sign in with Google" button using next-auth
+   - Responsive design with Tailwind CSS
+   - Loading states
+
+6. Create components/LoginButton.tsx:
+   - Google sign-in button component
+   - Handle loading and error states
+
+7. Create components/UserMenu.tsx:
+   - Display user profile picture and name
+   - Dropdown with "Settings" and "Sign Out" options
+   - Use shadcn/ui DropdownMenu component
+
+8. Update app/layout.tsx:
+   - Wrap with SessionProvider
+   - Add UserMenu to header when authenticated
+
+9. Add environment variables to .env.local:
+   - GOOGLE_CLIENT_ID
+   - GOOGLE_CLIENT_SECRET
+   - NEXTAUTH_SECRET
+   - NEXTAUTH_URL
+
+Important: Use NextAuth v5 (beta) as it's the latest version with App Router support.
+```
+
+### Phase 1: Project Setup
+```
+Create a Next.js 15 app with TypeScript and App Router. Use Tailwind CSS for styling and include shadcn/ui components. 
+
+Set up the following:
+1. Basic project structure with app directory
+2. Install dependencies: mongodb, @anthropic-ai/sdk, elevenlabs
+3. Create .env.local with placeholders for:
+   - MONGODB_URI
+   - ANTHROPIC_API_KEY
+   - ELEVENLABS_API_KEY
+   - NEXT_PUBLIC_APP_URL
+4. Add TypeScript types for Agent and Conversation
+5. Create a basic layout.tsx with responsive design
+6. Set up Tailwind config with custom colors for a modern AI app aesthetic
+```
+
+### Phase 2: Database Layer
+```
+Create MongoDB connection and data access layer:
+
+1. Create lib/mongodb.ts with connection pooling
+
+2. Create lib/users/userDb.ts with functions:
+   - createUser(googleUser: GoogleProfile): Promise<User>
+   - getUser(googleId: string): Promise<User | null>
+   - getUserByEmail(email: string): Promise<User | null>
+   - updateUser(googleId: string, updates: Partial<User>): Promise<User>
+   - updateLastLogin(googleId: string): Promise<void>
+
+3. Create lib/agents/agentDb.ts with functions:
+   - createAgent(agent: Agent, userId: string): Promise<Agent>
+   - getAgent(id: string, userId: string): Promise<Agent | null>
+   - getUserAgents(userId: string): Promise<Agent[]>
+   - updateAgent(id: string, userId: string, updates: Partial<Agent>): Promise<Agent>
+   - searchAgentsByExpertise(keywords: string[], userId: string): Promise<Agent[]>
+   - logAgentEvolution(agentId: string, evolution: Evolution): Promise<void>
+   - shareAgent(agentId: string, withUserIds: string[]): Promise<void>
+
+4. Create lib/conversations/conversationDb.ts with functions:
+   - createConversation(sessionId: string, userId: string): Promise<Conversation>
+   - addMessage(sessionId: string, userId: string, message: Message): Promise<void>
+   - getConversation(sessionId: string, userId: string): Promise<Conversation | null>
+   - getUserConversations(userId: string): Promise<Conversation[]>
+
+5. Add proper error handling and TypeScript types
+6. Implement connection caching for serverless optimization
+7. Add user ownership checks for all agent operations
+```
+
+### Phase 3: AI Integration
+```
+Create Claude API integration with model selection and prompt caching:
+
+1. Create lib/claude.ts with:
+   - initClaude(): Claude client instance
+   - sendMessage() with two implementations:
+     * sendMessageHaiku(prompt: string, systemPrompt?: string, cacheSystemPrompt?: boolean)
+     * sendMessageSonnet(prompt: string, systemPrompt?: string, cacheSystemPrompt?: boolean)
+   - Implement prompt caching for all system prompts:
+     * Use cache_control: { type: "ephemeral" } for system prompts
+     * Cache agent profiles to reduce costs by 90%
+   - Return token usage for cost tracking
+   - Handle rate limits and errors gracefully
+
+2. Create lib/agents/agentMatcher.ts:
+   - analyzeQuestion(question: string, agents: Agent[]): Promise<{
+       matchedAgent: Agent | null,
+       confidence: number,
+       reasoning: string
+     }>
+   - **Use Haiku 4.5** for semantic matching (fast and cheap)
+   - Cache common matching patterns
+
+3. Create lib/agents/agentCreator.ts:
+   - generateAgentProfile(topic: string, context: string): Promise<Agent>
+   - **Use Sonnet 4.5** for creating comprehensive agent profiles
+   - Enable prompt caching for the agent creation system prompt
+   - Return token usage for tracking
+
+4. Create lib/agents/agentEvolution.ts:
+   - analyzeAgentPerformance(agent: Agent, recentConversations: Message[]): Promise<{
+       needsImprovement: boolean,
+       suggestions: string[],
+       updatedFields: Partial<Agent>
+     }>
+   - **Use Sonnet 4.5** for analyzing and improving agents
+   - Cache the agent's current profile in the system prompt
+   - Implement logic to identify when and how to improve agents
+
+5. Create lib/usage/costCalculator.ts:
+   - calculateClaudeHaikuCost(inputTokens: number, outputTokens: number, cachedTokens: number)
+   - calculateClaudeSonnetCost(inputTokens: number, outputTokens: number, cachedTokens: number)
+   - calculateElevenLabsCost(characters: number)
+   - Pricing constants:
+     * Haiku: $1 input / $5 output / $0.10 cached input per 1M tokens
+     * Sonnet 4.5: $3 input / $15 output / $0.30 cached input per 1M tokens
+     * ElevenLabs: varies by character count
+```
+
+### Phase 4: Voice Integration with Fallback
+```
+Create voice input/output with ElevenLabs primary and Web Speech fallback:
+
+1. Create lib/utils/voiceUtils.ts with:
+   
+   SPEECH-TO-TEXT (Input):
+   - startListening(): Promise<string> using Web Speech API
+   - stopListening(): void
+   - Handle browser compatibility
+   
+   TEXT-TO-SPEECH (Output):
+   - synthesizeSpeech(text: string, userId: string): Promise<{ audio: AudioBuffer, service: string, cost: number }>
+   - Primary: Try ElevenLabs API first
+   - Fallback: If ElevenLabs fails (no credits, API error), use Web Speech API
+   - Logic:
+     ```typescript
+     async function synthesizeSpeech(text: string, userId: string) {
+       try {
+         // Check user's ElevenLabs usage
+         const userUsage = await getUserUsage(userId);
+         
+         // Try ElevenLabs if under budget
+         if (userUsage.elevenLabsCharacters < ELEVENLABS_MONTHLY_LIMIT) {
+           const audio = await callElevenLabs(text);
+           await trackUsage(userId, 'elevenlabs', text.length);
+           return { audio, service: 'elevenlabs', cost: calculateElevenLabsCost(text.length) };
+         }
+         
+         // Fallback to Web Speech if over budget
+         console.log('ElevenLabs limit reached, using Web Speech API fallback');
+         const audio = await webSpeechSynthesize(text);
+         await trackUsage(userId, 'web-speech', 0);
+         return { audio, service: 'web-speech', cost: 0 };
+         
+       } catch (error) {
+         // If ElevenLabs fails for any reason, use Web Speech
+         console.error('ElevenLabs error, falling back to Web Speech:', error);
+         const audio = await webSpeechSynthesize(text);
+         return { audio, service: 'web-speech', cost: 0 };
+       }
+     }
+     ```
+
+2. Create components/VoiceControls.tsx:
+   - Microphone button with recording indicator
+   - Volume visualization during listening
+   - Auto-play responses with voice
+   - Show which service is being used (ElevenLabs vs Web Speech)
+   - Visual indicator when fallback is active
+   - Mute/unmute controls
+   - Error handling for microphone permissions
+
+3. Create app/api/voice/synthesize/route.ts:
+   - POST endpoint that takes text and returns audio
+   - Try ElevenLabs first with your API key
+   - Monitor ElevenLabs character usage
+   - Fallback to Web Speech API instructions if ElevenLabs unavailable
+   - Track which service was used in usage logs
+   - Return service type in response: { audioUrl: string, service: 'elevenlabs' | 'web-speech' }
+
+4. ElevenLabs Configuration:
+   - Use your existing $5/month account (30,000 characters)
+   - Set character limit: 30,000/month
+   - Alert user at 80% usage (24,000 characters)
+   - Automatically switch to Web Speech at 100%
+```
+
+### Phase 5: Chat Interface
+```
+Create the main chat interface:
+
+1. Create components/ChatInterface.tsx:
+   - Message display with user/assistant differentiation
+   - Show which agent responded to each message
+   - Display "thinking" indicators
+   - Smooth auto-scroll
+   - Message timestamps
+   - Agent profile badges on responses
+
+2. Create components/AgentList.tsx:
+   - Sidebar showing all available agents
+   - Agent cards with name, expertise, and stats
+   - Click to view full agent details
+   - Visual indicator for recently used agents
+   - "Create New Agent" button
+
+3. Create components/AgentCard.tsx:
+   - Display agent information attractively
+   - Show performance metrics
+   - Evolution history timeline
+   - Edit/update capabilities (admin)
+
+4. Create app/page.tsx:
+   - Main layout with chat and agent list
+   - Session management
+   - Voice controls integration
+   - Responsive design for mobile/desktop
+```
+
+### Phase 6: API Routes with Usage Tracking
+```
+Create all API endpoints with authentication and cost tracking:
+
+1. app/api/chat/route.ts (POST):
+   - Add authentication check: const session = await getServerSession()
+   - Verify user is authenticated before processing
+   - Accept: { message: string, sessionId: string, voiceEnabled: boolean }
+   - Process flow:
+     a. Check user's budget status
+     b. Load user's agents (only agents they own or have access to)
+     c. Match question to agent using agentMatcher (Haiku)
+     d. If no match and confidence <70%, suggest agent creation
+     e. If matched, use agent's system prompt with Claude Haiku
+     f. **Enable prompt caching** for agent system prompts
+     g. Save conversation with userId
+     h. **Track usage**: log tokens, cost, service used
+     i. Check if agent needs evolution
+     j. Return: { response: string, agentUsed: Agent | null, suggestion?: string, tokensUsed: object, cost: number }
+
+2. app/api/agents/create/route.ts (POST):
+   - Add authentication check
+   - Check user's budget before proceeding
+   - Accept: { topic: string, initialPrompt: string }
+   - Generate agent profile using agentCreator with **Sonnet 4.5**
+   - **Enable prompt caching** for the agent creation system prompt
+   - Save to MongoDB with userId as owner
+   - **Track usage**: log Sonnet tokens and cost
+   - Return: { agent: Agent, tokensUsed: object, cost: number }
+
+3. app/api/agents/update/route.ts (PUT):
+   - Add authentication check
+   - Verify user owns the agent before updating
+   - Accept: { id: string, updates: Partial<Agent> }
+   - Use **Sonnet 4.5** for intelligent updates with agentEvolution
+   - **Enable prompt caching** for current agent profile
+   - Update agent and log evolution
+   - **Track usage**: log Sonnet tokens and cost
+   - Return: { agent: Agent, tokensUsed: object, cost: number }
+
+4. app/api/agents/list/route.ts (GET):
+   - Add authentication check
+   - Return only user's agents and shared agents
+   - Include usage stats per agent
+   - Sort by last used
+
+5. app/api/usage/track/route.ts (POST):
+   - Add authentication check
+   - Accept: { service: string, tokens: object, characters: number, cost: number, metadata: object }
+   - Log to API Usage Log collection
+   - Update user's current month usage
+   - Check budget limits and send alerts
+   - Return: { success: boolean, usageStats: object }
+
+6. app/api/usage/stats/route.ts (GET):
+   - Add authentication check
+   - Query params: ?period=current|history&months=3
+   - Return user's usage statistics:
+     * Current month costs by service
+     * Token usage breakdown
+     * Cost trends
+     * Budget status and alerts
+   - Return: { currentMonth: object, history: array, budgetStatus: object }
+
+7. Add proper error responses for:
+   - Unauthorized access (401, 403)
+   - Budget exceeded (429 with upgrade message)
+```
+
+### Phase 7: Export Functionality
+```
+Create document export system:
+
+1. Create lib/utils/exportUtils.ts:
+   - exportToPDF(conversation: Conversation): Promise<Buffer>
+   - exportToTXT(conversation: Conversation): string
+   - exportToDOCX(conversation: Conversation): Promise<Buffer>
+   - Include agent information and timestamps
+
+2. Create components/ExportButton.tsx:
+   - Dropdown with format options
+   - Loading state during generation
+   - Auto-download on completion
+   - Error handling
+
+3. Install dependencies: pdfkit, docx
+```
+
+### Phase 8: Netlify & GitHub Configuration
+```
+Set up GitHub version control and Netlify deployment:
+
+GITHUB SETUP (PRIVATE REPO SUPPORTED):
+
+1. Create .gitignore file:
+   ```
+   # Dependencies
+   node_modules/
+   
+   # Next.js
+   .next/
+   out/
+   build/
+   
+   # Environment variables
+   .env
+   .env.local
+   .env*.local
+   
+   # Debug logs
+   npm-debug.log*
+   yarn-debug.log*
+   yarn-error.log*
+   
+   # OS files
+   .DS_Store
+   Thumbs.db
+   ```
+
+2. Initialize Git repository:
+   ```bash
+   git init
+   git add .
+   git commit -m "Initial commit: AI Agent Profile Manager"
+   ```
+
+3. Create GitHub repository:
+   - Go to github.com and create new repository
+   - **Can be PRIVATE** - Netlify works with private repos!
+   - Don't initialize with README (already have one)
+   - Copy the repository URL
+
+4. Connect local repo to GitHub:
+   ```bash
+   git remote add origin https://github.com/yourusername/ai-agent-manager.git
+   git branch -M main
+   git push -u origin main
+   ```
+
+NETLIFY DEPLOYMENT:
+
+1. Create netlify.toml in root:
+   - Build command: npm run build
+   - Publish directory: .next
+   - Node version: 20
+   - Environment variables configuration
+
+2. Connect Netlify to GitHub:
+   - Log into Netlify
+   - Click "Add new site" → "Import an existing project"
+   - Choose "GitHub"
+   - Authorize Netlify to access your GitHub (works with private repos)
+   - Select your repository
+   - Netlify will auto-detect Next.js settings
+
+3. Configure environment variables in Netlify dashboard:
+   - MONGODB_URI
+   - ANTHROPIC_API_KEY
+   - ELEVENLABS_API_KEY
+   - ELEVENLABS_VOICE_ID
+   - ELEVENLABS_MONTHLY_LIMIT
+   - GOOGLE_CLIENT_ID
+   - GOOGLE_CLIENT_SECRET
+   - NEXTAUTH_SECRET (generate new one for production)
+   - NEXTAUTH_URL (set to your Netlify URL)
+   - DEFAULT_MONTHLY_BUDGET
+   - BUDGET_ALERT_THRESHOLD
+
+4. Update Google OAuth settings:
+   - Add production callback URL: https://your-app.netlify.app/api/auth/callback/google
+   - Add production domain to authorized domains
+
+5. Test local Netlify deployment:
+   - Install Netlify CLI: npm install -g netlify-cli
+   - Run: netlify dev
+   - Test authentication flow locally
+   - Test all API routes with auth
+   - Verify cost tracking works
+
+6. Deploy to production:
+   - Push to GitHub: git push origin main
+   - Netlify auto-deploys from main branch
+   - Monitor build logs in Netlify dashboard
+
+7. Set up continuous deployment:
+   - Every push to main branch auto-deploys
+   - Preview deploys for pull requests
+   - Rollback capability if needed
+
+IMPORTANT: Your repository can be PRIVATE. Netlify has full access to private repos once you authorize the GitHub integration.
+```
+
+### Phase 9: UI/UX Polish + Usage Dashboard
+```
+Polish the user interface and add cost monitoring:
+
+1. Create app/dashboard/page.tsx:
+   - Usage overview dashboard
+   - Current month statistics
+   - Cost breakdown by service (Claude Haiku, Sonnet, ElevenLabs)
+   - Token usage charts
+   - Historical trends (last 3-6 months)
+   - Budget alerts and limits
+   - Export usage reports
+
+2. Create components/UsageDashboard.tsx:
+   - Real-time cost display
+   - Progress bars for budget usage
+   - Service breakdown (Haiku vs Sonnet vs Voice)
+   - Cost projections based on current usage
+   - Recommendations for optimization
+
+3. Create components/CostAlert.tsx:
+   - Alert banner when approaching budget limits
+   - Show remaining budget
+   - Suggest switching to Web Speech if voice budget low
+   - Option to set custom budget limits
+
+4. Add to components/ChatInterface.tsx:
+   - Small badge showing cost per message
+   - Indicator when using cached prompts (cost savings)
+   - Voice service indicator (ElevenLabs or Web Speech fallback)
+
+5. Add animations using Framer Motion:
+   - Message slide-in animations
+   - Agent card hover effects
+   - Smooth transitions between states
+   - Cost counter animations
+
+6. Implement loading states:
+   - Skeleton screens for agent list
+   - Typing indicators in chat
+   - Progress bars for voice processing
+
+7. Add empty states:
+   - "No agents yet" illustration
+   - "Start a conversation" prompt
+   - Onboarding tour for first-time users
+
+8. Implement dark mode using next-themes
+
+9. Add accessibility:
+   - ARIA labels
+   - Keyboard navigation
+   - Screen reader support
+   - High contrast mode
+
+10. Add budget management UI:
+    - Settings page to set monthly budget
+    - Alert threshold slider (50%-90%)
+    - Hard limit toggle (block when exceeded)
+    - Email notifications for budget alerts
+```
+
+### Phase 10: Testing & Optimization
+```
+Add testing and optimize performance:
+
+1. Create test agents for different domains:
+   - Financial advisor
+   - Health & wellness coach
+   - Technical support specialist
+
+2. Test agent matching accuracy with various questions
+
+3. Optimize API routes:
+   - Implement response caching
+   - Add rate limiting
+   - Optimize database queries with indexes
+
+4. Test voice functionality:
+   - Cross-browser compatibility
+   - Mobile device testing
+   - Microphone permission handling
+
+5. Performance optimization:
+   - Lazy load components
+   - Optimize bundle size
+   - Implement service worker for offline support
+```
+
+---
+
+## Environment Variables (.env.local)
+
+```env
+# MongoDB
+MONGODB_URI=mongodb+srv://username:password@cluster.mongodb.net/ai-agents?retryWrites=true&w=majority
+
+# Anthropic Claude (your existing $20/month account)
+ANTHROPIC_API_KEY=sk-ant-xxxxx
+
+# ElevenLabs (your existing $5/month account with 30K characters)
+ELEVENLABS_API_KEY=xxxxx
+ELEVENLABS_VOICE_ID=your-preferred-voice-id  # e.g., "Bella" or "Rachel"
+ELEVENLABS_MONTHLY_LIMIT=30000  # 30K characters for $5 plan
+
+# Google OAuth
+GOOGLE_CLIENT_ID=your-google-client-id.apps.googleusercontent.com
+GOOGLE_CLIENT_SECRET=your-google-client-secret
+
+# NextAuth
+NEXTAUTH_SECRET=generate-with-openssl-rand-base64-32
+NEXTAUTH_URL=http://localhost:3000
+
+# App URL
+NEXT_PUBLIC_APP_URL=http://localhost:3000
+
+# Cost Tracking (set your preferred limits)
+DEFAULT_MONTHLY_BUDGET=50  # Default budget in USD
+BUDGET_ALERT_THRESHOLD=80  # Alert at 80% of budget
+```
+
+### How to Get ElevenLabs Voice ID:
+
+1. Log into your ElevenLabs account
+2. Go to "Voice Library" or "Voices"
+3. Choose a soft female voice (recommended: "Bella", "Rachel", or "Charlotte")
+4. Click on the voice and copy the Voice ID
+5. Paste it into ELEVENLABS_VOICE_ID
+
+### Cost Calculation Constants (for reference):
+```
+Claude Haiku 4.5:
+- Input: $1 per 1M tokens
+- Output: $5 per 1M tokens
+- Cached Input: $0.10 per 1M tokens (90% savings!)
+
+Claude Sonnet 4.5:
+- Input: $3 per 1M tokens
+- Output: $15 per 1M tokens
+- Cached Input: $0.30 per 1M tokens (90% savings!)
+
+ElevenLabs ($5/month plan):
+- 30,000 characters per month
+- ~$0.000167 per character
+- Fallback to Web Speech API (free) when limit reached
+```
+
+---
+
+## Netlify Configuration (netlify.toml)
+
+```toml
+[build]
+  command = "npm run build"
+  publish = ".next"
+
+[build.environment]
+  NODE_VERSION = "20"
+
+[[redirects]]
+  from = "/api/*"
+  to = "/.netlify/functions/:splat"
+  status = 200
+
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Frame-Options = "DENY"
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"
+```
+
+---
+
+## Key Features Implementation Details
+
+### 1. Voice Interaction
+- Use Web Speech API for speech-to-text (browser native)
+- Use ElevenLabs API for text-to-speech (high quality female voice)
+- Implement "push to talk" and "continuous listening" modes
+- Add voice activity detection for natural conversation flow
+
+### 2. Agent Profile Creation
+- Conversational agent creation: "Create a financial advisor agent"
+- Claude analyzes the request and generates comprehensive profile
+- User can refine the profile through conversation
+- Automatic expertise extraction from conversations
+
+### 3. Intelligent Routing
+- Semantic matching using Claude embeddings
+- Confidence scoring for agent selection
+- Fallback to general assistant if confidence <70%
+- Multi-agent consultation for complex questions
+
+### 4. Agent Evolution
+- Monitor conversation quality and user feedback
+- Identify knowledge gaps during conversations
+- Suggest improvements: "Should I add [capability] to [agent]?"
+- Track all changes in evolution history
+- A/B testing for prompt improvements
+
+### 5. Document Export
+- Include conversation metadata (timestamps, agents used)
+- Format responses with proper attribution
+- Support multiple formats (PDF, DOCX, TXT, Markdown)
+- Add branding/header with agent information
+
+---
+
+## Deployment Checklist
+
+- [ ] MongoDB Atlas cluster created and configured (Free Tier)
+- [ ] Google Cloud Project created
+- [ ] Google OAuth credentials obtained (Client ID & Secret)
+- [ ] Authorized redirect URIs configured in Google Cloud Console
+- [ ] ElevenLabs voice selected and Voice ID obtained
+- [ ] .gitignore file created
+- [ ] GitHub repository created (can be PRIVATE)
+- [ ] Local code pushed to GitHub
+- [ ] Netlify account created
+- [ ] Netlify connected to GitHub (authorized for private repos)
+- [ ] Environment variables set in Netlify dashboard
+- [ ] NEXTAUTH_SECRET generated for production
+- [ ] Repository connected to Netlify
+- [ ] Build settings configured in Netlify
+- [ ] First deployment successful
+- [ ] Google login tested in production
+- [ ] API routes tested in production with authentication
+- [ ] Voice functionality tested (ElevenLabs + Web Speech fallback)
+- [ ] Cost tracking verified (check usage dashboard)
+- [ ] Prompt caching working (check reduced costs in logs)
+- [ ] User data isolation verified (users can only see their own agents)
+- [ ] Budget alerts tested (set low limit and trigger alert)
+- [ ] Mobile responsiveness verified
+- [ ] Error tracking configured (Sentry optional)
+- [ ] Analytics added (optional)
+
+---
+
+## Usage Flow Example
+
+1. User opens app and asks: "How should I invest for retirement?"
+2. System checks existing agents, finds no "Financial Advisor" agent
+3. System responds: "I don't have a specialized financial advisor agent yet. Would you like me to create one?"
+4. User: "Yes, create one"
+5. System generates Financial Advisor agent profile with expertise in retirement planning
+6. System routes original question to new Financial Advisor agent
+7. Agent provides detailed response with voice output
+8. User continues conversation, agent learns and improves
+9. User asks to export conversation as PDF
+10. System generates formatted document with all Q&A and agent information
+
+---
+
+## Next Steps After Basic Implementation
+
+1. **Enhanced Security Features**
+   - Two-factor authentication (2FA)
+   - Session management and expiry
+   - Rate limiting per user
+   - API key management for users
+
+2. **Team/Organization Features**
+   - Create organizations/workspaces
+   - Share agents within teams
+   - Role-based access control (admin, member, viewer)
+   - Team usage analytics
+
+3. **Advanced Agent Features**
+   - Agent marketplace (share profiles publicly)
+   - Agent collaboration (multiple agents working together)
+   - Agent templates library
+   - Custom voice cloning for each agent
+
+4. **Enhanced Analytics**
+   - Visual agent performance dashboard
+   - Usage tracking per user
+   - Conversation analytics
+   - Cost tracking (API usage)
+
+5. **Additional Integrations**
+   - Calendar integration
+   - Email integration
+   - Slack/Discord notifications
+   - Zapier/Make.com webhooks
+
+6. **Mobile & Desktop**
+   - Mobile app version (React Native)
+   - Desktop app (Electron)
+   - Progressive Web App (PWA)
+
+7. **Enterprise Features**
+   - SSO (SAML, Azure AD)
+   - Audit logs
+   - Data export/import
+   - Custom branding
+
+8. **AI Enhancements**
+   - RAG implementation for agent knowledge bases
+   - Agent fine-tuning based on conversation history
+   - Multi-modal support (images, documents)
+   - Real-time collaboration on agents
+
+9. **Monetization**
+   - Subscription tiers (Free, Pro, Enterprise)
+   - Usage-based billing
+   - Agent marketplace revenue sharing
+   - White-label solutions
+
+10. **Privacy & Compliance**
+    - GDPR compliance tools
+    - Data retention policies
+    - Right to deletion
+    - Data encryption at rest
+
+---
+
+## 💰 Your Specific Cost Structure
+
+With your existing accounts and setup:
+
+### **Monthly Fixed Costs:**
+- **Claude API**: $20/month (existing account) ✅
+- **ElevenLabs**: $5/month (30,000 characters) ✅
+- **MongoDB Atlas**: Free Tier ✅
+- **Netlify**: Free Tier ✅
+- **Google OAuth**: Free ✅
+- **GitHub**: Free (private repo supported) ✅
+
+**Total Fixed: $25/month**
+
+### **Variable Costs (within your accounts):**
+
+**Claude Usage (covered by your $20/month):**
+- **Haiku 4.5** for all chat/Q&A: ~$1 per 200K input + 200K output tokens
+- **Sonnet 4.5** for agent creation/evolution: ~$3 per 100K input + 100K output tokens
+- **Prompt Caching**: Saves 90% on repeated system prompts
+- Your $20 should cover approximately:
+  - 4,000+ conversations with Haiku
+  - 100+ agent creations with Sonnet
+  - Much more with caching enabled
+
+**Voice Usage (within your $5/month ElevenLabs):**
+- Primary: ElevenLabs (30,000 characters/month)
+- Fallback: Web Speech API (unlimited, free)
+- Example: 200-word response = ~1,200 characters
+- You can do ~25 voice responses before automatic fallback
+- Fallback happens automatically - no interruption!
+
+### **Cost Optimization Built In:**
+
+1. ✅ **Prompt Caching** - 90% cost reduction on agent system prompts
+2. ✅ **Model Selection** - Haiku for cheap tasks, Sonnet only when needed
+3. ✅ **Voice Fallback** - Automatic switch to free Web Speech when ElevenLabs runs out
+4. ✅ **Usage Tracking** - Real-time monitoring of all costs
+5. ✅ **Budget Alerts** - Get notified at 80% usage
+6. ✅ **Free Tiers** - MongoDB, Netlify, and GitHub all free
+
+### **Expected Real-World Usage:**
+
+**Light User (10 conversations/day, 5 with voice):**
+- Claude: ~300 conversations/month = ~$1.50 (well within $20)
+- Voice: ~150 voice responses = ~5,000 characters (safe within 30K limit)
+- **Cost: $0 extra** (within your plans)
+
+**Moderate User (50 conversations/day, 20 with voice):**
+- Claude: ~1,500 conversations/month = ~$7.50 (within $20)
+- Voice: ~600 voice responses = ~20,000 characters (within 30K)
+- Create 10 agents/month = ~$1.50 Sonnet usage
+- **Cost: $0 extra** (still within your plans)
+
+**Heavy User (100+ conversations/day):**
+- Claude: ~3,000 conversations/month = ~$15 (within $20)
+- Voice: First ~25/day with ElevenLabs, then Web Speech fallback
+- **Cost: $0 extra** (within limits with fallback)
+
+### **Bottom Line:**
+Your **$25/month** fixed cost should handle significant usage before needing upgrades. The fallback systems ensure the app never breaks, it just switches to free alternatives when needed!
+
+**Monitoring Dashboard will show:**
+- Real-time cost tracking
+- Days remaining before limits
+- When fallback is active
+- Optimization suggestions
+
+---
+
+## Tips for Windsurf Development
+
+1. **Use Cascade extensively**: Ask it to implement entire components at once
+2. **Iterate quickly**: Ask for improvements after seeing initial implementations
+3. **Test as you go**: Use Netlify Dev to test locally with serverless functions
+4. **Ask for explanations**: Have Cascade explain complex logic
+5. **Leverage AI**: Let Cascade write tests, documentation, and even refactor code
+
+## Sample Cascade Prompts
+
+```
+"Implement the chat interface component with the following features: [list features]. Use shadcn/ui components and make it responsive."
+
+"Create the agent matching logic that uses Claude to semantically match questions to agent profiles. Return confidence scores."
+
+"Add voice controls with ElevenLabs integration. Use a soft female voice and handle all error cases gracefully."
+
+"Optimize the MongoDB queries for better performance in serverless environment. Add proper indexes."
+```
+
+---
+
+This documentation provides everything you need to build your AI Agent Profile Manager. Start with Phase 1 and work through sequentially, using the Windsurf prompts to guide development. Good luck! 🚀
