@@ -168,6 +168,8 @@ export class SpeechRecognitionManager {
   private isListening: boolean = false;
   private onResult?: (result: SpeechRecognitionResult) => void;
   private onError?: (error: string) => void;
+  private lastResultTime: number = 0;
+  private hasReceivedResults: boolean = false;
 
   constructor() {
     if (typeof window === "undefined") {
@@ -187,6 +189,7 @@ export class SpeechRecognitionManager {
     this.recognition.continuous = true;
     this.recognition.interimResults = true;
     this.recognition.lang = "en-US";
+    this.recognition.maxAlternatives = 3; // Get multiple alternatives for better accuracy
 
     this.setupEventHandlers();
   }
@@ -200,15 +203,19 @@ export class SpeechRecognitionManager {
       const confidence = result[0].confidence;
       const isFinal = result.isFinal;
 
+      // Track that we received results
+      this.lastResultTime = Date.now();
+      this.hasReceivedResults = true;
+
       if (this.onResult) {
         this.onResult({ transcript, confidence, isFinal });
       }
     };
 
     this.recognition.onerror = (event: any) => {
-      // Suppress "no-speech" errors as they're normal when user doesn't speak
-      if (event.error === "no-speech") {
-        return; // Silently ignore
+      // Suppress normal errors that aren't really errors
+      if (event.error === "no-speech" || event.error === "aborted") {
+        return; // Silently ignore - these are normal when user stops or doesn't speak
       }
       
       // Log other errors
@@ -222,8 +229,8 @@ export class SpeechRecognitionManager {
       console.log("🔚 Recognition ended");
       this.isListening = false;
       
-      // Auto-restart if we were listening (keeps session alive)
-      // This prevents the "mic stops working" issue after a few uses
+      // Auto-restart to keep session alive
+      // Use a slightly longer delay to allow natural pauses in speech
       if (this.onResult) {
         console.log("🔄 Auto-restarting recognition to keep session alive");
         setTimeout(() => {
@@ -235,7 +242,7 @@ export class SpeechRecognitionManager {
               console.log("Could not auto-restart:", e);
             }
           }
-        }, 100);
+        }, 300); // Increased delay from 100ms to 300ms to allow natural pauses
       }
     };
   }
@@ -256,6 +263,8 @@ export class SpeechRecognitionManager {
 
     this.onResult = onResult;
     this.onError = onError;
+    this.hasReceivedResults = false;
+    this.lastResultTime = Date.now();
 
     // CRITICAL: Always stop first to prevent "already started" errors
     try {

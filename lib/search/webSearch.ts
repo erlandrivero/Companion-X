@@ -19,11 +19,13 @@ export interface SearchResponse {
 /**
  * Search the web using Brave Search API
  * Free tier: 2000 queries/month
+ * @param freshness - Time filter: "pd" (past day), "pw" (past week), "pm" (past month), "py" (past year)
  */
 export async function searchWeb(
   query: string,
   count: number = 5,
-  apiKey?: string
+  apiKey?: string,
+  freshness?: "pd" | "pw" | "pm" | "py"
 ): Promise<SearchResponse> {
   const braveApiKey = apiKey || process.env.BRAVE_SEARCH_API_KEY;
   
@@ -42,6 +44,11 @@ export async function searchWeb(
     url.searchParams.append("count", count.toString());
     url.searchParams.append("text_decorations", "false");
     url.searchParams.append("search_lang", "en");
+    
+    // Add freshness filter if specified
+    if (freshness) {
+      url.searchParams.append("freshness", freshness);
+    }
 
     console.log("🔍 Searching web for:", query);
 

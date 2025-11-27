@@ -140,6 +140,8 @@ Create a detailed skill document following this structure:
 - Use consistent units throughout responses (e.g., always Celsius for European weather, or provide both)
 - When user asks for specific units (Fahrenheit/Celsius), provide the answer in those units
 - Be consistent with terminology and formatting across all responses
+- For web search skills: When searching for recent publications or current information, prioritize fresh results (use freshness filters like "past week" or "past month")
+- For web search skills: Be transparent about search limitations - if results don't show recent content, acknowledge this and provide alternative sources
 
 ## Common Pitfalls
 - Being too cautious when you have the expertise

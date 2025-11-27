@@ -416,16 +416,16 @@ export async function POST(request: NextRequest) {
       // Try multiple search strategies to find Medium articles
       console.log("📰 Trying multiple search strategies for Medium articles...");
       
-      // Strategy 1: Full name
+      // Strategy 1: Full name with recent filter
       const query1 = `"${fullName}" site:medium.com`;
       console.log("  Strategy 1:", query1);
-      publishedResults = await searchWeb(query1, 3, braveApiKey);
+      publishedResults = await searchWeb(query1, 3, braveApiKey, "py"); // Past year
       
       // Strategy 2: First and last name separately (if no results from strategy 1)
       if (publishedResults.results.length === 0) {
         const query2 = `${firstName} ${lastName} site:medium.com`;
         console.log("  Strategy 2:", query2);
-        const results2 = await searchWeb(query2, 3, braveApiKey);
+        const results2 = await searchWeb(query2, 3, braveApiKey, "py");
         publishedResults = results2;
       }
       
@@ -433,7 +433,7 @@ export async function POST(request: NextRequest) {
       if (publishedResults.results.length === 0) {
         const query3 = `${lastName} site:medium.com author`;
         console.log("  Strategy 3:", query3);
-        const results3 = await searchWeb(query3, 3, braveApiKey);
+        const results3 = await searchWeb(query3, 3, braveApiKey, "py");
         publishedResults = results3;
       }
       
@@ -441,7 +441,7 @@ export async function POST(request: NextRequest) {
       if (publishedResults.results.length === 0) {
         const query4 = `${fullName} medium article AI data`;
         console.log("  Strategy 4 (broad):", query4);
-        const results4 = await searchWeb(query4, 5, braveApiKey);
+        const results4 = await searchWeb(query4, 5, braveApiKey, "py");
         publishedResults = results4;
       }
       
@@ -510,6 +510,7 @@ Use these sources to provide accurate, well-cited responses with actual URLs.`
 - NO bullet points or numbered lists
 - Write as if speaking naturally to someone
 - ${responseLengthInstructions[userResponseLength]}
+- EXCEPTION: You MAY include plain URLs (https://...) for places, attractions, articles, or resources you mention - these will be automatically made clickable
 
 `;
 
@@ -533,6 +534,9 @@ A: "Use live shiners or crawfish. They work year-round and bass love them."
 
 Q: "Year to date calculation"  
 A: "Use SUM IF YEAR of Date equals YEAR of TODAY and Date is less than or equal to TODAY THEN Measure END. This sums your measure for the current year up to today."
+
+Q: "Best places to visit in France?"
+A: "The south of France is magical. Start with Provence https://en.wikipedia.org/wiki/Provence with its lavender fields and Roman ruins. Visit Avignon https://en.wikipedia.org/wiki/Avignon and Arles https://en.wikipedia.org/wiki/Arles for history. On the coast, Nice https://en.wikipedia.org/wiki/Nice is stunning with Mediterranean beaches."
 
 WRONG EXAMPLES (DO NOT DO THIS):
 ❌ "**Live bait** (most effective)" - has asterisks

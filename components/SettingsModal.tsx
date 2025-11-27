@@ -20,6 +20,9 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
   const [hasExistingAnthropicKey, setHasExistingAnthropicKey] = useState(false);
   const [hasExistingElevenLabsKey, setHasExistingElevenLabsKey] = useState(false);
   const [hasExistingVoiceId, setHasExistingVoiceId] = useState(false);
+  const [removeAnthropicKey, setRemoveAnthropicKey] = useState(false);
+  const [removeElevenLabsKey, setRemoveElevenLabsKey] = useState(false);
+  const [removeVoiceId, setRemoveVoiceId] = useState(false);
   
   // Usage Limits state
   const [enableLimits, setEnableLimits] = useState(false);
@@ -145,7 +148,10 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
     // If field is empty but key exists, we preserve the existing key
     const apiKeysToSave: any = {};
     
-    if (anthropicKey && anthropicKey.trim()) {
+    if (removeAnthropicKey) {
+      // Explicitly remove the key
+      apiKeysToSave.anthropic = "__REMOVE__";
+    } else if (anthropicKey && anthropicKey.trim()) {
       // New key entered
       apiKeysToSave.anthropic = anthropicKey.trim();
     } else if (hasExistingAnthropicKey) {
@@ -153,13 +159,17 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
       apiKeysToSave.anthropic = "__KEEP_EXISTING__";
     }
     
-    if (elevenLabsKey && elevenLabsKey.trim()) {
+    if (removeElevenLabsKey) {
+      apiKeysToSave.elevenLabs = "__REMOVE__";
+    } else if (elevenLabsKey && elevenLabsKey.trim()) {
       apiKeysToSave.elevenLabs = elevenLabsKey.trim();
     } else if (hasExistingElevenLabsKey) {
       apiKeysToSave.elevenLabs = "__KEEP_EXISTING__";
     }
     
-    if (elevenLabsVoiceId && elevenLabsVoiceId.trim()) {
+    if (removeVoiceId) {
+      apiKeysToSave.elevenLabsVoiceId = "__REMOVE__";
+    } else if (elevenLabsVoiceId && elevenLabsVoiceId.trim()) {
       apiKeysToSave.elevenLabsVoiceId = elevenLabsVoiceId.trim();
     }
 
@@ -336,21 +346,39 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                       <div>
                         <label className="block text-sm font-medium mb-2">
                           Anthropic API Key (Claude)
-                          {hasExistingAnthropicKey && (
+                          {hasExistingAnthropicKey && !removeAnthropicKey && (
                             <span className="ml-2 text-xs text-green-600 dark:text-green-400">
                               ✓ Configured
                             </span>
                           )}
                         </label>
-                        <input
-                          type="password"
-                          value={anthropicKey}
-                          onChange={(e) => setAnthropicKey(e.target.value)}
-                          placeholder={hasExistingAnthropicKey ? "••••••••••••••••" : "sk-ant-api03-..."}
-                          className="w-full px-4 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800"
-                        />
+                        <div className="flex gap-2">
+                          <input
+                            type="password"
+                            value={anthropicKey}
+                            onChange={(e) => setAnthropicKey(e.target.value)}
+                            placeholder={hasExistingAnthropicKey ? "••••••••••••••••" : "sk-ant-api03-..."}
+                            disabled={removeAnthropicKey}
+                            className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed"
+                          />
+                          {hasExistingAnthropicKey && (
+                            <button
+                              type="button"
+                              onClick={() => setRemoveAnthropicKey(!removeAnthropicKey)}
+                              className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                                removeAnthropicKey
+                                  ? "bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300"
+                                  : "bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 hover:bg-red-200 dark:hover:bg-red-900/50"
+                              }`}
+                            >
+                              {removeAnthropicKey ? "Undo" : "Remove"}
+                            </button>
+                          )}
+                        </div>
                         <p className="text-xs text-gray-500 mt-1">
-                          {hasExistingAnthropicKey ? (
+                          {removeAnthropicKey ? (
+                            <span className="text-red-600 dark:text-red-400">Key will be removed when you save</span>
+                          ) : hasExistingAnthropicKey ? (
                             "Key is saved. Enter a new key to update, or leave blank to keep current key."
                           ) : (
                             <>
@@ -371,21 +399,39 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                       <div>
                         <label className="block text-sm font-medium mb-2">
                           ElevenLabs API Key (Voice)
-                          {hasExistingElevenLabsKey && (
+                          {hasExistingElevenLabsKey && !removeElevenLabsKey && (
                             <span className="ml-2 text-xs text-green-600 dark:text-green-400">
                               ✓ Configured
                             </span>
                           )}
                         </label>
-                        <input
-                          type="password"
-                          value={elevenLabsKey}
-                          onChange={(e) => setElevenLabsKey(e.target.value)}
-                          placeholder={hasExistingElevenLabsKey ? "••••••••••••••••" : "sk_..."}
-                          className="w-full px-4 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800"
-                        />
+                        <div className="flex gap-2">
+                          <input
+                            type="password"
+                            value={elevenLabsKey}
+                            onChange={(e) => setElevenLabsKey(e.target.value)}
+                            placeholder={hasExistingElevenLabsKey ? "••••••••••••••••" : "sk_..."}
+                            disabled={removeElevenLabsKey}
+                            className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed"
+                          />
+                          {hasExistingElevenLabsKey && (
+                            <button
+                              type="button"
+                              onClick={() => setRemoveElevenLabsKey(!removeElevenLabsKey)}
+                              className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                                removeElevenLabsKey
+                                  ? "bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300"
+                                  : "bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 hover:bg-red-200 dark:hover:bg-red-900/50"
+                              }`}
+                            >
+                              {removeElevenLabsKey ? "Undo" : "Remove"}
+                            </button>
+                          )}
+                        </div>
                         <p className="text-xs text-gray-500 mt-1">
-                          {hasExistingElevenLabsKey ? (
+                          {removeElevenLabsKey ? (
+                            <span className="text-red-600 dark:text-red-400">Key will be removed when you save</span>
+                          ) : hasExistingElevenLabsKey ? (
                             "Key is saved. Enter a new key to update, or leave blank to keep current key."
                           ) : (
                             <>
@@ -406,21 +452,39 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                       <div>
                         <label className="block text-sm font-medium mb-2">
                           ElevenLabs Voice ID
-                          {hasExistingVoiceId && (
+                          {hasExistingVoiceId && !removeVoiceId && (
                             <span className="ml-2 text-xs text-green-600 dark:text-green-400">
                               ✓ Configured
                             </span>
                           )}
                         </label>
-                        <input
-                          type="text"
-                          value={elevenLabsVoiceId}
-                          onChange={(e) => setElevenLabsVoiceId(e.target.value)}
-                          placeholder={hasExistingVoiceId ? "kdmDKE6EkgrWrrykO9Qt" : "kdmDKE6EkgrWrrykO9Qt"}
-                          className="w-full px-4 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800"
-                        />
+                        <div className="flex gap-2">
+                          <input
+                            type="text"
+                            value={elevenLabsVoiceId}
+                            onChange={(e) => setElevenLabsVoiceId(e.target.value)}
+                            placeholder={hasExistingVoiceId ? "kdmDKE6EkgrWrrykO9Qt" : "kdmDKE6EkgrWrrykO9Qt"}
+                            disabled={removeVoiceId}
+                            className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed"
+                          />
+                          {hasExistingVoiceId && (
+                            <button
+                              type="button"
+                              onClick={() => setRemoveVoiceId(!removeVoiceId)}
+                              className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                                removeVoiceId
+                                  ? "bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300"
+                                  : "bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400 hover:bg-red-200 dark:hover:bg-red-900/50"
+                              }`}
+                            >
+                              {removeVoiceId ? "Undo" : "Remove"}
+                            </button>
+                          )}
+                        </div>
                         <p className="text-xs text-gray-500 mt-1">
-                          {hasExistingVoiceId ? (
+                          {removeVoiceId ? (
+                            <span className="text-red-600 dark:text-red-400">Voice ID will be removed when you save</span>
+                          ) : hasExistingVoiceId ? (
                             "Voice ID is saved. Enter a new ID to update, or leave blank to keep current."
                           ) : (
                             "Find voice IDs in your ElevenLabs dashboard under Voice Library"

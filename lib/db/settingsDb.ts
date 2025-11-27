@@ -58,19 +58,30 @@ export async function saveUserSettings(userId: string, settings: Partial<UserSet
     const db = await getDatabase();
     const now = new Date();
 
-    // Handle __KEEP_EXISTING__ markers for API keys
+    // Handle __KEEP_EXISTING__ and __REMOVE__ markers for API keys
     if (settings.apiKeys) {
       const existingSettings = await getUserSettings(userId);
       const apiKeys = { ...settings.apiKeys };
       
+      // Handle Anthropic key
       if (apiKeys.anthropic === "__KEEP_EXISTING__") {
         apiKeys.anthropic = existingSettings?.apiKeys?.anthropic;
+      } else if (apiKeys.anthropic === "__REMOVE__") {
+        delete apiKeys.anthropic;
       }
+      
+      // Handle ElevenLabs key
       if (apiKeys.elevenLabs === "__KEEP_EXISTING__") {
         apiKeys.elevenLabs = existingSettings?.apiKeys?.elevenLabs;
+      } else if (apiKeys.elevenLabs === "__REMOVE__") {
+        delete apiKeys.elevenLabs;
       }
+      
+      // Handle ElevenLabs Voice ID
       if (apiKeys.elevenLabsVoiceId === "__KEEP_EXISTING__") {
         apiKeys.elevenLabsVoiceId = existingSettings?.apiKeys?.elevenLabsVoiceId;
+      } else if (apiKeys.elevenLabsVoiceId === "__REMOVE__") {
+        delete apiKeys.elevenLabsVoiceId;
       }
       
       settings.apiKeys = apiKeys;
