@@ -30,6 +30,11 @@ if (process.env.NODE_ENV === "development") {
 export default clientPromise;
 
 export async function getDatabase(): Promise<Db> {
-  const client = await clientPromise;
-  return client.db("ai-agent-manager");
+  try {
+    const client = await clientPromise;
+    return client.db("ai-agent-manager");
+  } catch (error) {
+    console.error("MongoDB connection error:", error);
+    throw new Error("Failed to connect to database. Please check your MongoDB configuration.");
+  }
 }
