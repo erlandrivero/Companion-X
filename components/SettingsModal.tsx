@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { X, Key, Zap, Mic, Palette, Shield, DollarSign } from "lucide-react";
+import { X, Key, Zap, Mic, Palette } from "lucide-react";
 import { waitForVoices } from "@/lib/voice/webSpeech";
 
 interface SettingsModalProps {
@@ -10,7 +10,7 @@ interface SettingsModalProps {
 }
 
 export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
-  const [activeTab, setActiveTab] = useState<"api" | "voice" | "ai" | "display" | "limits">("api");
+  const [activeTab, setActiveTab] = useState<"api" | "voice" | "ai" | "display">("api");
   
   // API Keys state
   const [showApiKeys, setShowApiKeys] = useState(false);
@@ -23,13 +23,6 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
   const [removeAnthropicKey, setRemoveAnthropicKey] = useState(false);
   const [removeElevenLabsKey, setRemoveElevenLabsKey] = useState(false);
   const [removeVoiceId, setRemoveVoiceId] = useState(false);
-  
-  // Usage Limits state
-  const [enableLimits, setEnableLimits] = useState(false);
-  const [maxTokensPerUser, setMaxTokensPerUser] = useState(10000);
-  const [maxRequestsPerHour, setMaxRequestsPerHour] = useState(20);
-  const [maxCostPerUser, setMaxCostPerUser] = useState(5.0);
-  const [requireAuth, setRequireAuth] = useState(true);
   
   // Voice Settings state
   const [voiceSpeed, setVoiceSpeed] = useState(1.15);
@@ -119,15 +112,6 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
           setTemperature(data.ai.temperature || 0.3);
         }
         
-        // Load usage limits
-        if (data.limits) {
-          setEnableLimits(data.limits.enabled || false);
-          setMaxTokensPerUser(data.limits.maxTokensPerUser || 10000);
-          setMaxRequestsPerHour(data.limits.maxRequestsPerHour || 20);
-          setMaxCostPerUser(data.limits.maxCostPerUser || 1.0);
-          setRequireAuth(data.limits.requireAuth !== false);
-        }
-        
         // Show if API keys are configured
         if (data.apiKeys) {
           setShowApiKeys(data.apiKeys.hasAnthropic || data.apiKeys.hasElevenLabs);
@@ -176,13 +160,6 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
     // Save settings to backend
     const settings = {
       apiKeys: Object.keys(apiKeysToSave).length > 0 ? apiKeysToSave : undefined,
-      limits: enableLimits ? {
-        enabled: true,
-        maxTokensPerUser,
-        maxRequestsPerHour,
-        maxCostPerUser,
-        requireAuth,
-      } : { enabled: false },
       voice: { 
         speed: voiceSpeed, 
         pitch: voicePitch, 
@@ -265,18 +242,6 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
             >
               <Key className="w-5 h-5" />
               <span className="font-medium">API Keys</span>
-            </button>
-
-            <button
-              onClick={() => setActiveTab("limits")}
-              className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-colors ${
-                activeTab === "limits"
-                  ? "bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400"
-                  : "hover:bg-gray-100 dark:hover:bg-gray-800"
-              }`}
-            >
-              <Shield className="w-5 h-5" />
-              <span className="font-medium">Usage Limits</span>
             </button>
 
             <button
@@ -506,111 +471,6 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                             "Find voice IDs in your ElevenLabs dashboard under Voice Library"
                           )}
                         </p>
-                      </div>
-                    </>
-                  )}
-                </div>
-              </div>
-            )}
-
-            {/* Usage Limits Tab */}
-            {activeTab === "limits" && (
-              <div className="space-y-6">
-                <div>
-                  <h3 className="text-lg font-semibold mb-2">Usage Limits & Protection</h3>
-                  <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
-                    Protect your API costs by setting usage limits for business deployment.
-                  </p>
-                </div>
-
-                <div className="space-y-4">
-                  <div>
-                    <label className="flex items-center gap-2 mb-4">
-                      <input
-                        type="checkbox"
-                        checked={enableLimits}
-                        onChange={(e) => setEnableLimits(e.target.checked)}
-                        className="rounded"
-                      />
-                      <span className="text-sm font-medium">Enable usage limits</span>
-                    </label>
-                  </div>
-
-                  {enableLimits && (
-                    <>
-                      <div>
-                        <label className="flex items-center gap-2 mb-2">
-                          <input
-                            type="checkbox"
-                            checked={requireAuth}
-                            onChange={(e) => setRequireAuth(e.target.checked)}
-                            className="rounded"
-                          />
-                          <span className="text-sm font-medium">Require authentication</span>
-                        </label>
-                        <p className="text-xs text-gray-500 ml-6">
-                          Force users to sign in before using the app
-                        </p>
-                      </div>
-
-                      <div>
-                        <label className="block text-sm font-medium mb-2">
-                          Max Tokens Per User (Daily)
-                        </label>
-                        <input
-                          type="number"
-                          value={maxTokensPerUser}
-                          onChange={(e) => setMaxTokensPerUser(Number(e.target.value))}
-                          className="w-full px-4 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800"
-                        />
-                        <p className="text-xs text-gray-500 mt-1">
-                          Limit tokens per user per day (10,000 ≈ $0.30)
-                        </p>
-                      </div>
-
-                      <div>
-                        <label className="block text-sm font-medium mb-2">
-                          Max Requests Per Hour
-                        </label>
-                        <input
-                          type="number"
-                          value={maxRequestsPerHour}
-                          onChange={(e) => setMaxRequestsPerHour(Number(e.target.value))}
-                          className="w-full px-4 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800"
-                        />
-                        <p className="text-xs text-gray-500 mt-1">
-                          Prevent abuse with rate limiting
-                        </p>
-                      </div>
-
-                      <div>
-                        <label className="block text-sm font-medium mb-2">
-                          Max Cost Per User (Daily) - $
-                        </label>
-                        <input
-                          type="number"
-                          step="0.1"
-                          value={maxCostPerUser}
-                          onChange={(e) => setMaxCostPerUser(Number(e.target.value))}
-                          className="w-full px-4 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800"
-                        />
-                        <p className="text-xs text-gray-500 mt-1">
-                          Hard limit on cost per user per day
-                        </p>
-                      </div>
-
-                      <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4">
-                        <div className="flex items-start gap-2">
-                          <DollarSign className="w-5 h-5 text-yellow-600 dark:text-yellow-500 flex-shrink-0 mt-0.5" />
-                          <div>
-                            <p className="text-sm font-medium text-yellow-800 dark:text-yellow-200">
-                              Cost Protection Active
-                            </p>
-                            <p className="text-xs text-yellow-700 dark:text-yellow-300 mt-1">
-                              Users will be blocked when they hit any limit. Limits reset daily at midnight UTC.
-                            </p>
-                          </div>
-                        </div>
                       </div>
                     </>
                   )}
