@@ -160,7 +160,9 @@ export function AgentSkillsPanel({ agentId }: AgentSkillsPanelProps) {
       } as AgentSkill);
       
       setIsEditorOpen(true);
-      setShowSuggestions(false);
+      
+      // Remove only this suggestion from the list, keep others
+      setSuggestions(prev => prev.filter(s => s.name !== suggestion.name));
     } catch (error) {
       console.error("Failed to generate skill content:", error);
       // Fallback to template if AI generation fails
@@ -176,7 +178,9 @@ export function AgentSkillsPanel({ agentId }: AgentSkillsPanelProps) {
         skillContent: `# ${suggestion.name}\n\n## Overview\n${suggestion.description}\n\n## Capabilities\n- [Add capabilities]\n\n## Usage Guidelines\n[Add usage guidelines]`,
       } as AgentSkill);
       setIsEditorOpen(true);
-      setShowSuggestions(false);
+      
+      // Remove only this suggestion from the list, keep others
+      setSuggestions(prev => prev.filter(s => s.name !== suggestion.name));
     } finally {
       setIsGeneratingContent(false);
     }
