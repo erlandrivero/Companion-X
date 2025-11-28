@@ -472,16 +472,22 @@ export async function POST(request: NextRequest) {
       // Try multiple search strategies to find Medium articles
       console.log("📰 Trying multiple search strategies for Medium articles...");
       
-      // Strategy 1: Full name with RECENT filter (past month) - prioritize latest
-      // Include both medium.com AND custom domains (many authors use custom domains like drlee.io)
-      const query1 = `"${fullName}" (site:medium.com OR site:*.medium.com OR article OR blog)`;
-      console.log("  Strategy 1 (recent, broad):", query1);
-      publishedResults = await searchWeb(query1, 5, braveApiKey, "pm"); // Past month - most recent
+      // Strategy 1: UNRESTRICTED search for very recent articles (catches custom domains)
+      const query1Unrestricted = `"${fullName}" article published`;
+      console.log("  Strategy 1 (unrestricted, recent):", query1Unrestricted);
+      publishedResults = await searchWeb(query1Unrestricted, 10, braveApiKey, "pm"); // Past month - most recent
       
-      // Strategy 2: If no recent articles, try past year with more results
+      // Strategy 2: If no results, try with site restrictions
       if (publishedResults.results.length === 0) {
-        console.log("  Strategy 2 (past year, broad):", query1);
-        publishedResults = await searchWeb(query1, 10, braveApiKey, "py"); // Past year, more results
+        const query1 = `"${fullName}" (site:medium.com OR site:*.medium.com OR article OR blog)`;
+        console.log("  Strategy 2 (site-restricted, recent):", query1);
+        publishedResults = await searchWeb(query1, 5, braveApiKey, "pm");
+      }
+      
+      // Strategy 3: If still no recent articles, try past year unrestricted
+      if (publishedResults.results.length === 0) {
+        console.log("  Strategy 3 (unrestricted, past year):", query1Unrestricted);
+        publishedResults = await searchWeb(query1Unrestricted, 10, braveApiKey, "py"); // Past year, more results
       }
       
       // Strategy 3: First and last name separately (if no results from strategy 1 & 2)
