@@ -5,6 +5,7 @@
 
 import mammoth from 'mammoth';
 import * as XLSX from 'xlsx';
+import * as pdfjsLib from 'pdfjs-dist/legacy/build/pdf.mjs';
 
 /**
  * Extract text from Excel file
@@ -31,11 +32,37 @@ export async function extractExcelText(buffer: Buffer, fileName: string): Promis
 }
 
 /**
- * Extract text from PDF file
- * Note: PDF extraction is currently disabled due to Node.js compatibility issues
+ * Extract text from PDF file using pdfjs-dist
  */
 export async function extractPdfText(buffer: Buffer, fileName: string): Promise<string> {
-  return `[PDF Document: ${fileName}]\n\nPDF text extraction is currently unavailable. Please copy and paste the text content from your PDF, or I can help you with the document in another format.`;
+  try {
+    // Load the PDF document
+    const loadingTask = pdfjsLib.getDocument({
+      data: new Uint8Array(buffer),
+      useSystemFonts: true,
+    });
+    
+    const pdf = await loadingTask.promise;
+    let fullText = `[PDF Document: ${fileName}]\n\n`;
+    
+    // Extract text from each page
+    for (let pageNum = 1; pageNum <= pdf.numPages; pageNum++) {
+      const page = await pdf.getPage(pageNum);
+      const textContent = await page.getTextContent();
+      
+      // Combine text items
+      const pageText = textContent.items
+        .map((item: any) => item.str)
+        .join(' ');
+      
+      fullText += `--- Page ${pageNum} ---\n${pageText}\n\n`;
+    }
+    
+    return fullText;
+  } catch (error) {
+    console.error('PDF extraction error:', error);
+    return `[PDF Document: ${fileName}]\nError extracting text from PDF. The file may be corrupted, password-protected, or contain only images.`;
+  }
 }
 
 /**
