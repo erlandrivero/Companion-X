@@ -17,6 +17,8 @@ import { checkUsageLimits, recordUsage } from "@/lib/db/usageLimitsDb";
 import { getUserSettings } from "@/lib/db/settingsDb";
 import { correctTyposAndVoiceErrors } from "@/lib/ai/typoCorrection";
 import { searchWeb, formatSearchResults } from "@/lib/search/webSearch";
+import { processFile, formatFileForContext, validateFileSize } from "@/lib/files/fileProcessor";
+import { detectArtifacts } from "@/lib/artifacts/artifactDetector";
 
 export async function POST(request: NextRequest) {
   try {
@@ -43,13 +45,56 @@ export async function POST(request: NextRequest) {
       isDevelopment,
       environment: process.env.NODE_ENV,
     });
-    const { 
-      message, 
-      conversationId, 
-      voiceEnabled = false,
-      stream = false,
-      skipAgentMatching = false
-    } = await request.json();
+    // Handle both JSON and FormData (for file uploads)
+    const contentType = request.headers.get('content-type') || '';
+    let message: string;
+    let conversationId: string | undefined;
+    let voiceEnabled = false;
+    let stream = false;
+    let skipAgentMatching = false;
+    let uploadedFiles: File[] = [];
+    let fileContext = '';
+
+    if (contentType.includes('multipart/form-data')) {
+      // Handle file upload
+      const formData = await request.formData();
+      message = formData.get('message') as string;
+      conversationId = formData.get('conversationId') as string | undefined;
+      voiceEnabled = formData.get('voiceEnabled') === 'true';
+      stream = formData.get('stream') === 'true';
+      skipAgentMatching = formData.get('skipAgentMatching') === 'true';
+      
+      // Process uploaded files
+      const files = formData.getAll('files') as File[];
+      for (const file of files) {
+        // Validate file size
+        const validation = validateFileSize(file);
+        if (!validation.valid) {
+          return NextResponse.json(
+            { error: validation.error },
+            { status: 400 }
+          );
+        }
+        
+        uploadedFiles.push(file);
+        
+        // Process file and add to context
+        const processedFile = await processFile(file);
+        fileContext += formatFileForContext(processedFile) + '\n\n';
+      }
+      
+      if (uploadedFiles.length > 0) {
+        console.log(`📎 Processed ${uploadedFiles.length} file(s):`, uploadedFiles.map(f => f.name));
+      }
+    } else {
+      // Handle regular JSON request
+      const body = await request.json();
+      message = body.message;
+      conversationId = body.conversationId;
+      voiceEnabled = body.voiceEnabled || false;
+      stream = body.stream || false;
+      skipAgentMatching = body.skipAgentMatching || false;
+    }
 
     if (!message || typeof message !== "string") {
       return NextResponse.json(
@@ -592,8 +637,11 @@ CRITICAL: If search results are provided above, you MUST reference them specific
 
 `;
 
+    // Add file context if files were uploaded
+    const fileContextSection = fileContext ? `\n\n=== UPLOADED FILES ===\n${fileContext}\nThe user has uploaded the above file(s). Reference them in your response as needed.\n` : '';
+    
     let systemPrompt = agentUsed?.systemPrompt 
-      ? formattingRules + agentUsed.systemPrompt + webContext
+      ? formattingRules + agentUsed.systemPrompt + webContext + fileContextSection
       : formattingRules + `You are a helpful voice assistant. Answer questions clearly and conversationally.
 
 ABSOLUTELY FORBIDDEN (will break voice synthesis):
@@ -940,6 +988,9 @@ async function handleStreamingResponse(params: {
           voiceEnabled: voiceEnabled || false,
         });
 
+        // Detect artifacts in the response
+        const artifacts = detectArtifacts(fullResponse);
+        
         // Send completion event
         controller.enqueue(
           encoder.encode(
@@ -954,6 +1005,7 @@ async function handleStreamingResponse(params: {
                 cost,
               },
               sessionId,
+              artifacts: artifacts.length > 0 ? artifacts : undefined,
             })}\n\n`
           )
         );
