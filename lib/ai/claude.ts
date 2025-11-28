@@ -23,6 +23,7 @@ export interface ClaudeOptions {
   temperature?: number;
   apiKey?: string; // Allow custom API key
   tools?: Anthropic.Messages.Tool[];
+  images?: Array<{ base64: string; mediaType: string }>; // Vision support
 }
 
 /**
@@ -54,6 +55,7 @@ export async function sendMessageHaiku(
     maxTokens = 4096,
     temperature = 1.0,
     apiKey,
+    images = [],
   } = options;
 
   const anthropic = getAnthropicClient(apiKey);
@@ -77,6 +79,27 @@ export async function sendMessageHaiku(
       }
     }
 
+    // Build message content with images if provided
+    const messageContent: Anthropic.Messages.MessageParam["content"] = [];
+    
+    // Add images first
+    images.forEach((image) => {
+      messageContent.push({
+        type: "image",
+        source: {
+          type: "base64",
+          media_type: image.mediaType as "image/jpeg" | "image/png" | "image/gif" | "image/webp",
+          data: image.base64,
+        },
+      });
+    });
+    
+    // Add text message
+    messageContent.push({
+      type: "text",
+      text: userMessage,
+    });
+
     const response = await anthropic.messages.create({
       model: CLAUDE_MODELS.HAIKU,
       max_tokens: maxTokens,
@@ -85,7 +108,7 @@ export async function sendMessageHaiku(
       messages: [
         {
           role: "user",
-          content: userMessage,
+          content: images.length > 0 ? messageContent : userMessage,
         },
       ],
     });
@@ -273,6 +296,7 @@ export async function streamMessageHaiku(
     maxTokens = 4096,
     temperature = 1.0,
     apiKey,
+    images = [],
   } = options;
 
   const anthropic = getAnthropicClient(apiKey);
@@ -295,6 +319,27 @@ export async function streamMessageHaiku(
       }
     }
 
+    // Build message content with images if provided
+    const messageContent: Anthropic.Messages.MessageParam["content"] = [];
+    
+    // Add images first
+    images.forEach((image) => {
+      messageContent.push({
+        type: "image",
+        source: {
+          type: "base64",
+          media_type: image.mediaType as "image/jpeg" | "image/png" | "image/gif" | "image/webp",
+          data: image.base64,
+        },
+      });
+    });
+    
+    // Add text message
+    messageContent.push({
+      type: "text",
+      text: userMessage,
+    });
+
     const stream = await anthropic.messages.stream({
       model: CLAUDE_MODELS.HAIKU,
       max_tokens: maxTokens,
@@ -303,7 +348,7 @@ export async function streamMessageHaiku(
       messages: [
         {
           role: "user",
-          content: userMessage,
+          content: images.length > 0 ? messageContent : userMessage,
         },
       ],
     });

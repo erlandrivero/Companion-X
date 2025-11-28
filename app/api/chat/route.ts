@@ -714,6 +714,7 @@ Speak naturally. No formatting. Ever.` + webContext;
         userId,
         conversationId,
         voiceEnabled,
+        imageFiles,
       });
     }
 
@@ -853,6 +854,7 @@ async function handleStreamingResponse(params: {
   userId: string;
   conversationId?: string;
   voiceEnabled: boolean;
+  imageFiles?: Array<{name: string; base64: string; mediaType: string}>;
 }) {
   const {
     message,
@@ -864,6 +866,7 @@ async function handleStreamingResponse(params: {
     userId,
     conversationId,
     voiceEnabled,
+    imageFiles = [],
   } = params;
 
   const encoder = new TextEncoder();
@@ -919,6 +922,7 @@ async function handleStreamingResponse(params: {
           enableCaching: !!agentUsed,
           temperature: streamTemperature, // Use user's temperature preference
           apiKey: streamUserApiKey, // Use user's custom API key if they have one
+          images: imageFiles, // Pass images for vision
         });
 
         for await (const chunk of streamResponse) {

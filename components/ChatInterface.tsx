@@ -134,6 +134,23 @@ export function ChatInterface({ sessionId: initialSessionId, onAgentCreated }: C
   const removeFile = (index: number) => {
     setAttachedFiles(prev => prev.filter((_, i) => i !== index));
   };
+  
+  // Handle clipboard paste for images
+  const handlePaste = (e: React.ClipboardEvent) => {
+    const items = e.clipboardData?.items;
+    if (!items) return;
+    
+    for (let i = 0; i < items.length; i++) {
+      const item = items[i];
+      if (item.type.startsWith('image/')) {
+        const file = item.getAsFile();
+        if (file) {
+          setAttachedFiles(prev => [...prev, file]);
+          console.log(`📋 Pasted image: ${file.name || 'clipboard-image.png'}`);
+        }
+      }
+    }
+  };
 
   // Function to send a message (can be called programmatically)
   const sendMessage = async (messageText: string, skipAgentMatching: boolean = false) => {
@@ -1159,7 +1176,8 @@ export function ChatInterface({ sessionId: initialSessionId, onAgentCreated }: C
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyPress={handleKeyPress}
-              placeholder="Type your message... (Shift+Enter for new line)"
+              onPaste={handlePaste}
+              placeholder="Type your message... (Shift+Enter for new line, Ctrl+V to paste images)"
               rows={1}
               className="w-full px-4 py-3 pr-12 bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-white placeholder-gray-500 dark:placeholder-gray-400 rounded-2xl resize-none focus:outline-none focus:ring-2 focus:ring-purple-500"
               style={{
