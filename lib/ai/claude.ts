@@ -113,6 +113,10 @@ export async function sendMessageHaiku(
         content: images.length > 0 ? messageContent : userMessage,
       },
     ];
+    
+    // Debug log to verify message structure
+    console.log(`🔍 [sendMessageHaiku] Sending ${allMessages.length} messages to Claude:`, 
+      allMessages.map((m, i) => `${i}: ${m.role}`).join(', '));
 
     const response = await anthropic.messages.create({
       model: CLAUDE_MODELS.HAIKU,
@@ -361,6 +365,10 @@ export async function streamMessageHaiku(
         content: images.length > 0 ? messageContent : userMessage,
       },
     ];
+    
+    // Debug log to verify message structure
+    console.log(`🔍 [streamMessageHaiku] Sending ${allMessages.length} messages to Claude:`, 
+      allMessages.map((m, i) => `${i}: ${m.role}`).join(', '));
 
     const stream = await anthropic.messages.stream({
       model: CLAUDE_MODELS.HAIKU,
