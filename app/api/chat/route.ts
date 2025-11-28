@@ -473,13 +473,14 @@ export async function POST(request: NextRequest) {
       console.log("📰 Trying multiple search strategies for Medium articles...");
       
       // Strategy 1: Full name with RECENT filter (past month) - prioritize latest
-      const query1 = `"${fullName}" site:medium.com`;
-      console.log("  Strategy 1 (recent):", query1);
+      // Include both medium.com AND custom domains (many authors use custom domains like drlee.io)
+      const query1 = `"${fullName}" (site:medium.com OR site:*.medium.com OR article OR blog)`;
+      console.log("  Strategy 1 (recent, broad):", query1);
       publishedResults = await searchWeb(query1, 5, braveApiKey, "pm"); // Past month - most recent
       
       // Strategy 2: If no recent articles, try past year with more results
       if (publishedResults.results.length === 0) {
-        console.log("  Strategy 2 (past year):", query1);
+        console.log("  Strategy 2 (past year, broad):", query1);
         publishedResults = await searchWeb(query1, 10, braveApiKey, "py"); // Past year, more results
       }
       
