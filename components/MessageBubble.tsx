@@ -24,7 +24,7 @@ function linkifyText(text: string) {
           href={part}
           target="_blank"
           rel="noopener noreferrer"
-          className="text-blue-500 hover:text-blue-600 dark:text-blue-400 dark:hover:text-blue-300 underline break-all"
+          className="text-blue-500 hover:text-blue-600 dark:text-blue-400 dark:hover:text-blue-300 underline break-words"
         >
           {part}
         </a>
@@ -77,7 +77,7 @@ export function MessageBubble({ message, agentName }: MessageBubbleProps) {
               : "bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-gray-100 rounded-tl-sm"
           }`}
         >
-          <p className="text-sm whitespace-pre-wrap break-words">
+          <p className="text-sm whitespace-pre-wrap" style={{ wordBreak: 'break-word', overflowWrap: 'break-word' }}>
             {linkifyText(message.content)}
           </p>
         </div>
