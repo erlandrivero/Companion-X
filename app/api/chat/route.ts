@@ -851,7 +851,7 @@ async function handleStreamingResponse(params: {
   suggestedAgent: any;
   suggestedSkill: any;
   userId: string;
-  conversationId: string;
+  conversationId?: string;
   voiceEnabled: boolean;
 }) {
   const {
