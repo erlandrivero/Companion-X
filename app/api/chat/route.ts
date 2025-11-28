@@ -715,13 +715,17 @@ Speak naturally. No formatting. Ever.` + webContext;
       const conversation = await getConversation(conversationId, userId);
       if (conversation && conversation.messages) {
         // Convert messages to Claude format, filtering out system messages
+        // Limit to last 20 messages (10 exchanges) to prevent token overflow
         conversationHistory = conversation.messages
           .filter((msg) => msg.role === "user" || msg.role === "assistant")
+          .slice(-20)
           .map((msg) => ({
             role: msg.role as "user" | "assistant",
             content: msg.content,
           }));
         console.log(`📚 Loaded ${conversationHistory.length} messages from conversation history`);
+        console.log(`📝 History preview:`, conversationHistory.slice(-2).map(m => `${m.role}: ${m.content.substring(0, 50)}...`));
+        console.log(`🆕 Current message: ${message.substring(0, 50)}...`);
       }
     }
 
