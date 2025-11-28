@@ -58,10 +58,15 @@ export async function extractPdfText(buffer: Buffer, fileName: string): Promise<
       fullText += `--- Page ${pageNum} ---\n${pageText}\n\n`;
     }
     
+    // Check if we got any meaningful text
+    if (fullText.replace(`[PDF Document: ${fileName}]\n\n`, '').trim().length < 50) {
+      return `[PDF Document: ${fileName}]\n\nNote: This PDF appears to contain primarily images or scanned content. Text extraction works best with text-based PDFs. If this is a scanned document, please:\n1. Copy and paste the text directly, or\n2. Use OCR software to convert it to text first, or\n3. Describe what you'd like help with from the document.`;
+    }
+    
     return fullText;
   } catch (error) {
     console.error('PDF extraction error:', error);
-    return `[PDF Document: ${fileName}]\nError extracting text from PDF. The file may be corrupted, password-protected, or contain only images.`;
+    return `[PDF Document: ${fileName}]\n\nError extracting text from PDF. The file may be:\n- Corrupted or password-protected\n- Contains only images/scans (no extractable text)\n- In an unsupported format\n\nPlease try copying and pasting the text content directly, or let me know what you need help with.`;
   }
 }
 

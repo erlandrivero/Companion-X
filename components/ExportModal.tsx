@@ -1,10 +1,14 @@
 "use client";
 
 import { useState } from "react";
-import { X, FileText, FileDown, Loader2 } from "lucide-react";
+import { X, FileText, FileDown, Loader2, FileJson, FileCode, Table } from "lucide-react";
 import { Message } from "@/types/conversation";
 import { exportToPDF } from "@/lib/export/pdfExport";
 import { exportToDOCX } from "@/lib/export/docxExport";
+import { exportToMarkdown } from "@/lib/export/markdownExport";
+import { exportToJSON } from "@/lib/export/jsonExport";
+import { exportToHTML } from "@/lib/export/htmlExport";
+import { exportToCSV } from "@/lib/export/csvExport";
 
 interface ExportModalProps {
   isOpen: boolean;
@@ -60,6 +64,82 @@ export function ExportModal({
     } catch (error) {
       console.error("DOCX export error:", error);
       alert("Failed to export DOCX. Please try again.");
+      setIsExporting(false);
+    }
+  };
+
+  const handleExportMarkdown = () => {
+    setIsExporting(true);
+    try {
+      exportToMarkdown(messages, {
+        title: customTitle,
+        includeTimestamps,
+        includeAgentInfo,
+      });
+      setTimeout(() => {
+        setIsExporting(false);
+        onClose();
+      }, 1000);
+    } catch (error) {
+      console.error("Markdown export error:", error);
+      alert("Failed to export Markdown. Please try again.");
+      setIsExporting(false);
+    }
+  };
+
+  const handleExportJSON = () => {
+    setIsExporting(true);
+    try {
+      exportToJSON(messages, {
+        title: customTitle,
+        includeMetadata: true,
+        prettyPrint: true,
+      });
+      setTimeout(() => {
+        setIsExporting(false);
+        onClose();
+      }, 1000);
+    } catch (error) {
+      console.error("JSON export error:", error);
+      alert("Failed to export JSON. Please try again.");
+      setIsExporting(false);
+    }
+  };
+
+  const handleExportHTML = () => {
+    setIsExporting(true);
+    try {
+      exportToHTML(messages, {
+        title: customTitle,
+        includeTimestamps,
+        includeAgentInfo,
+      });
+      setTimeout(() => {
+        setIsExporting(false);
+        onClose();
+      }, 1000);
+    } catch (error) {
+      console.error("HTML export error:", error);
+      alert("Failed to export HTML. Please try again.");
+      setIsExporting(false);
+    }
+  };
+
+  const handleExportCSV = () => {
+    setIsExporting(true);
+    try {
+      exportToCSV(messages, {
+        title: customTitle,
+        includeTimestamps,
+        includeAgentInfo,
+      });
+      setTimeout(() => {
+        setIsExporting(false);
+        onClose();
+      }, 1000);
+    } catch (error) {
+      console.error("CSV export error:", error);
+      alert("Failed to export CSV. Please try again.");
       setIsExporting(false);
     }
   };
@@ -156,27 +236,55 @@ export function ExportModal({
             <button
               onClick={handleExportPDF}
               disabled={isExporting || messages.length === 0}
-              className="flex items-center justify-center gap-2 px-4 py-3 bg-red-500 hover:bg-red-600 disabled:bg-gray-300 dark:disabled:bg-gray-700 text-white rounded-lg font-medium transition-colors disabled:cursor-not-allowed"
+              className="flex items-center justify-center gap-2 px-3 py-2.5 bg-red-500 hover:bg-red-600 disabled:bg-gray-300 dark:disabled:bg-gray-700 text-white rounded-lg text-sm font-medium transition-colors disabled:cursor-not-allowed"
             >
-              {isExporting ? (
-                <Loader2 className="w-5 h-5 animate-spin" />
-              ) : (
-                <FileText className="w-5 h-5" />
-              )}
-              Export PDF
+              {isExporting ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileText className="w-4 h-4" />}
+              PDF
             </button>
 
             <button
               onClick={handleExportDOCX}
               disabled={isExporting || messages.length === 0}
-              className="flex items-center justify-center gap-2 px-4 py-3 bg-blue-500 hover:bg-blue-600 disabled:bg-gray-300 dark:disabled:bg-gray-700 text-white rounded-lg font-medium transition-colors disabled:cursor-not-allowed"
+              className="flex items-center justify-center gap-2 px-3 py-2.5 bg-blue-500 hover:bg-blue-600 disabled:bg-gray-300 dark:disabled:bg-gray-700 text-white rounded-lg text-sm font-medium transition-colors disabled:cursor-not-allowed"
             >
-              {isExporting ? (
-                <Loader2 className="w-5 h-5 animate-spin" />
-              ) : (
-                <FileText className="w-5 h-5" />
-              )}
-              Export DOCX
+              {isExporting ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileText className="w-4 h-4" />}
+              DOCX
+            </button>
+
+            <button
+              onClick={handleExportMarkdown}
+              disabled={isExporting || messages.length === 0}
+              className="flex items-center justify-center gap-2 px-3 py-2.5 bg-gray-700 hover:bg-gray-800 disabled:bg-gray-300 dark:disabled:bg-gray-700 text-white rounded-lg text-sm font-medium transition-colors disabled:cursor-not-allowed"
+            >
+              {isExporting ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileCode className="w-4 h-4" />}
+              Markdown
+            </button>
+
+            <button
+              onClick={handleExportHTML}
+              disabled={isExporting || messages.length === 0}
+              className="flex items-center justify-center gap-2 px-3 py-2.5 bg-orange-500 hover:bg-orange-600 disabled:bg-gray-300 dark:disabled:bg-gray-700 text-white rounded-lg text-sm font-medium transition-colors disabled:cursor-not-allowed"
+            >
+              {isExporting ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileCode className="w-4 h-4" />}
+              HTML
+            </button>
+
+            <button
+              onClick={handleExportJSON}
+              disabled={isExporting || messages.length === 0}
+              className="flex items-center justify-center gap-2 px-3 py-2.5 bg-green-500 hover:bg-green-600 disabled:bg-gray-300 dark:disabled:bg-gray-700 text-white rounded-lg text-sm font-medium transition-colors disabled:cursor-not-allowed"
+            >
+              {isExporting ? <Loader2 className="w-4 h-4 animate-spin" /> : <FileJson className="w-4 h-4" />}
+              JSON
+            </button>
+
+            <button
+              onClick={handleExportCSV}
+              disabled={isExporting || messages.length === 0}
+              className="flex items-center justify-center gap-2 px-3 py-2.5 bg-teal-500 hover:bg-teal-600 disabled:bg-gray-300 dark:disabled:bg-gray-700 text-white rounded-lg text-sm font-medium transition-colors disabled:cursor-not-allowed"
+            >
+              {isExporting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Table className="w-4 h-4" />}
+              CSV
             </button>
           </div>
 
