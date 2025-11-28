@@ -269,6 +269,7 @@ Analyze and determine the best match.`;
 
 /**
  * Fallback keyword-based matching if Claude fails
+ * Mimics AI behavior: suggests skills for matched agents, new agents only if no match
  */
 function fallbackKeywordMatch(
   question: string,
@@ -316,14 +317,45 @@ function fallbackKeywordMatch(
 
   const confidence = Math.min(bestScore / 10, 0.7);
 
+  // Mimic AI behavior:
+  // - If agent matched with decent confidence → suggest adding a skill
+  // - If no good match → suggest creating a new agent
+  const hasDecentMatch = confidence >= 0.4 && !!bestMatch;
+  const hasWeakMatch = confidence >= 0.2 && confidence < 0.4 && !!bestMatch;
+  const noMatch = confidence < 0.2;
+
   return {
     matchedAgent: bestMatch,
     confidence,
-    reasoning: confidence > 0.4
+    reasoning: hasDecentMatch
       ? "Keyword-based match found (fallback method)"
-      : "No suitable agent found using keyword matching",
-    suggestNewAgent: confidence < 0.3,
-    suggestNewSkill: false,
-    suggestion: confidence < 0.3 ? "Consider creating a new specialized agent" : undefined,
+      : noMatch
+      ? "No suitable agent found using keyword matching"
+      : "Weak match found (fallback method)",
+    // Suggest new agent only if no match at all
+    suggestNewAgent: noMatch,
+    // Suggest new skill if we have a match (decent or weak)
+    suggestNewSkill: hasDecentMatch || hasWeakMatch,
+    // Extract a skill name from the question for skill suggestion
+    suggestion: (hasDecentMatch || hasWeakMatch)
+      ? extractSkillNameFromQuestion(question)
+      : noMatch
+      ? "Consider creating a new specialized agent"
+      : undefined,
   };
+}
+
+/**
+ * Extract a potential skill name from the question
+ */
+function extractSkillNameFromQuestion(question: string): string {
+  // Remove common question words
+  const cleaned = question
+    .replace(/\b(what|where|when|why|how|who|can|could|would|should|is|are|the|a|an|in|on|at|to|for|of|about|with)\b/gi, ' ')
+    .replace(/[?.,!]/g, '')
+    .trim();
+  
+  // Take first few meaningful words and capitalize
+  const words = cleaned.split(/\s+/).filter(w => w.length > 2).slice(0, 4);
+  return words.map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ') || 'New Skill';
 }
