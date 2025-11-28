@@ -7,6 +7,7 @@ import { AgentList } from "@/components/AgentList";
 import { AgentEditModal } from "@/components/AgentEditModal";
 import { AgentDetailModal } from "@/components/AgentDetailModal";
 import { SettingsModal } from "@/components/SettingsModal";
+import { TrialBanner } from "@/components/TrialBanner";
 import { Brain, Menu, X, Sparkles, CheckCircle } from "lucide-react";
 import { Agent } from "@/types/agent";
 
@@ -139,6 +140,9 @@ export default function Home() {
           <UserMenu onSettingsClick={() => setIsSettingsOpen(true)} />
         </div>
       </header>
+
+      {/* Trial Banner */}
+      <TrialBanner onOpenSettings={() => setIsSettingsOpen(true)} />
 
       {/* Main Content */}
       <div className="flex-1 flex overflow-hidden">
