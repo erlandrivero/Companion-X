@@ -69,34 +69,42 @@ export async function POST(request: NextRequest) {
       // Process uploaded files
       const files = formData.getAll('files') as File[];
       for (const file of files) {
-        // Validate file size
-        const validation = validateFileSize(file);
-        if (!validation.valid) {
+        try {
+          // Validate file size
+          const validation = validateFileSize(file);
+          if (!validation.valid) {
+            return NextResponse.json(
+              { error: validation.error },
+              { status: 400 }
+            );
+          }
+          
+          uploadedFiles.push(file);
+          
+          // Check if file is an image
+          const isImage = file.type.startsWith('image/');
+          
+          if (isImage) {
+            // Process images for vision API
+            const arrayBuffer = await file.arrayBuffer();
+            const base64 = Buffer.from(arrayBuffer).toString('base64');
+            imageFiles.push({
+              name: file.name,
+              base64,
+              mediaType: file.type,
+            });
+            fileContext += `[Image: ${file.name}]\n\n`;
+          } else {
+            // Process other files normally
+            const fileContent = await processFileOnServer(file);
+            fileContext += `--- BEGIN FILE: ${file.name} ---\n${fileContent}\n--- END FILE: ${file.name} ---\n\n`;
+          }
+        } catch (fileError) {
+          console.error(`Error processing file ${file.name}:`, fileError);
           return NextResponse.json(
-            { error: validation.error },
-            { status: 400 }
+            { error: `Failed to process file: ${file.name}` },
+            { status: 500 }
           );
-        }
-        
-        uploadedFiles.push(file);
-        
-        // Check if file is an image
-        const isImage = file.type.startsWith('image/');
-        
-        if (isImage) {
-          // Process images for vision API
-          const arrayBuffer = await file.arrayBuffer();
-          const base64 = Buffer.from(arrayBuffer).toString('base64');
-          imageFiles.push({
-            name: file.name,
-            base64,
-            mediaType: file.type,
-          });
-          fileContext += `[Image: ${file.name}]\n\n`;
-        } else {
-          // Process other files normally
-          const fileContent = await processFileOnServer(file);
-          fileContext += `--- BEGIN FILE: ${file.name} ---\n${fileContent}\n--- END FILE: ${file.name} ---\n\n`;
         }
       }
       
