@@ -3,6 +3,23 @@
  * Provides web search capabilities for agent creation, skill creation, and responses
  */
 
+// Simple rate limiter for Brave Search API (max 1 request per second)
+let lastSearchTime = 0;
+const MIN_SEARCH_INTERVAL = 1100; // 1.1 seconds between requests
+
+async function waitForRateLimit() {
+  const now = Date.now();
+  const timeSinceLastSearch = now - lastSearchTime;
+  
+  if (timeSinceLastSearch < MIN_SEARCH_INTERVAL) {
+    const waitTime = MIN_SEARCH_INTERVAL - timeSinceLastSearch;
+    console.log(`⏱️ Rate limiting: waiting ${waitTime}ms before next search`);
+    await new Promise(resolve => setTimeout(resolve, waitTime));
+  }
+  
+  lastSearchTime = Date.now();
+}
+
 export interface SearchResult {
   title: string;
   url: string;
@@ -39,6 +56,9 @@ export async function searchWeb(
   }
 
   try {
+    // Wait for rate limit before making request
+    await waitForRateLimit();
+    
     const url = new URL("https://api.search.brave.com/res/v1/web/search");
     url.searchParams.append("q", query);
     url.searchParams.append("count", count.toString());
