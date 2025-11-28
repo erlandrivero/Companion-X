@@ -221,10 +221,14 @@ Analyze and determine the best match.`;
     let suggestion = result.suggestion || "";
     
     if (suggestNewSkill && matchedAgent && suggestion) {
-      // Get agent's existing skills
-      const agentSkills = skills.filter(s => 
-        agents.find(a => a._id?.toString() === matchedAgent?._id?.toString())
-      );
+      // Get agent's existing skills (fixed: filter by agentId)
+      const agentSkills = skills.filter(s => s.agentId === matchedAgent._id?.toString());
+      
+      console.log("🔍 Checking for duplicate skills:", {
+        suggestion,
+        agentId: matchedAgent._id?.toString(),
+        existingSkills: agentSkills.map(s => s.name),
+      });
       
       // Check if a similar skill already exists
       const suggestionLower = suggestion.toLowerCase();
@@ -234,6 +238,16 @@ Analyze and determine the best match.`;
         const suggestionWords = suggestionLower.split(/\s+/).filter((w: string) => w.length > 3);
         const skillWords = skillNameLower.split(/\s+/).filter((w: string) => w.length > 3);
         const overlap = suggestionWords.filter((w: string) => skillWords.some((sw: string) => sw.includes(w) || w.includes(sw)));
+        
+        console.log("🔍 Comparing skills:", {
+          existing: skill.name,
+          suggested: suggestion,
+          suggestionWords,
+          skillWords,
+          overlap,
+          overlapCount: overlap.length,
+        });
+        
         return overlap.length >= 2; // If 2+ words overlap, consider it duplicate
       });
       
@@ -241,6 +255,8 @@ Analyze and determine the best match.`;
         console.log("⚠️ Similar skill already exists - not suggesting");
         suggestNewSkill = false;
         suggestion = "";
+      } else {
+        console.log("✅ No duplicate found - suggesting skill");
       }
     }
 
