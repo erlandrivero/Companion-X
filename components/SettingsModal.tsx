@@ -356,7 +356,13 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                           <input
                             type="password"
                             value={anthropicKey}
-                            onChange={(e) => setAnthropicKey(e.target.value)}
+                            onChange={(e) => {
+                              setAnthropicKey(e.target.value);
+                              // If user starts typing, cancel the removal
+                              if (removeAnthropicKey) {
+                                setRemoveAnthropicKey(false);
+                              }
+                            }}
                             placeholder={hasExistingAnthropicKey ? "••••••••••••••••" : "sk-ant-api03-..."}
                             disabled={removeAnthropicKey}
                             className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed"
@@ -377,7 +383,9 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                         </div>
                         <p className="text-xs text-gray-500 mt-1">
                           {removeAnthropicKey ? (
-                            <span className="text-red-600 dark:text-red-400">Key will be removed when you save</span>
+                            <span className="text-red-600 dark:text-red-400 font-medium">
+                              ⚠️ Key will be removed when you save. Click "Undo" to cancel and add a new key instead.
+                            </span>
                           ) : hasExistingAnthropicKey ? (
                             "Key is saved. Enter a new key to update, or leave blank to keep current key."
                           ) : (
@@ -409,7 +417,13 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                           <input
                             type="password"
                             value={elevenLabsKey}
-                            onChange={(e) => setElevenLabsKey(e.target.value)}
+                            onChange={(e) => {
+                              setElevenLabsKey(e.target.value);
+                              // If user starts typing, cancel the removal
+                              if (removeElevenLabsKey) {
+                                setRemoveElevenLabsKey(false);
+                              }
+                            }}
                             placeholder={hasExistingElevenLabsKey ? "••••••••••••••••" : "sk_..."}
                             disabled={removeElevenLabsKey}
                             className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed"
@@ -430,7 +444,9 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                         </div>
                         <p className="text-xs text-gray-500 mt-1">
                           {removeElevenLabsKey ? (
-                            <span className="text-red-600 dark:text-red-400">Key will be removed when you save</span>
+                            <span className="text-red-600 dark:text-red-400 font-medium">
+                              ⚠️ Key will be removed when you save. Click "Undo" to cancel and add a new key instead.
+                            </span>
                           ) : hasExistingElevenLabsKey ? (
                             "Key is saved. Enter a new key to update, or leave blank to keep current key."
                           ) : (
