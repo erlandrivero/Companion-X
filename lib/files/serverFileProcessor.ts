@@ -5,7 +5,14 @@
 
 import mammoth from 'mammoth';
 import * as XLSX from 'xlsx';
-const pdfParse = require('pdf-parse');
+
+// Try to load pdf-parse, but make it optional
+let pdfParse: any = null;
+try {
+  pdfParse = require('pdf-parse');
+} catch (e) {
+  console.warn('pdf-parse not available - PDF extraction will be limited');
+}
 
 /**
  * Extract text from Excel file
@@ -35,6 +42,10 @@ export async function extractExcelText(buffer: Buffer, fileName: string): Promis
  * Extract text from PDF file
  */
 export async function extractPdfText(buffer: Buffer, fileName: string): Promise<string> {
+  if (!pdfParse) {
+    return `[PDF Document: ${fileName}]\n\nPDF text extraction is currently unavailable. Please copy and paste the text content, or the PDF will be uploaded as-is.`;
+  }
+  
   try {
     const data = await pdfParse(buffer);
     return `[PDF Document: ${fileName}]\n\n${data.text}`;
