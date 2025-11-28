@@ -309,8 +309,24 @@ export async function POST(request: NextRequest) {
       suggestNewAgent: matchResult.suggestNewAgent,
       suggestNewSkill: matchResult.suggestNewSkill,
       hasSuggestion: !!matchResult.suggestion,
+      needsClarification: matchResult.needsClarification,
       agentCount: agents.length,
     });
+
+    // If Claude is asking for clarification, respond directly without suggesting agent
+    if (matchResult.needsClarification && matchResult.suggestion) {
+      console.log("💬 Claude needs clarification - responding directly");
+      response = matchResult.suggestion;
+      
+      // Return the clarification message
+      return NextResponse.json({
+        response,
+        agentUsed: null,
+        agentCreated: false,
+        suggestedAgent: null,
+        suggestedSkill: null,
+      });
+    }
 
     if (matchResult.suggestNewAgent && matchResult.suggestion && agents.length < 50) {
       // AI suggests creating a new agent - STOP HERE and wait for user decision

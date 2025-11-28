@@ -125,9 +125,24 @@ export async function getApiKeys(userId: string): Promise<{
     // Try to get user's custom keys first
     const settings = await getUserSettings(userId);
     
+    console.log("🔑 getApiKeys - Settings retrieved:", {
+      userId,
+      hasSettings: !!settings,
+      hasApiKeys: !!settings?.apiKeys,
+      hasAnthropicKey: !!settings?.apiKeys?.anthropic,
+      anthropicKeyLength: settings?.apiKeys?.anthropic?.length || 0,
+      anthropicKeyPreview: settings?.apiKeys?.anthropic?.substring(0, 15) || "N/A",
+    });
+    
     const anthropic = settings?.apiKeys?.anthropic || process.env.ANTHROPIC_API_KEY;
     const elevenLabs = settings?.apiKeys?.elevenLabs || process.env.ELEVENLABS_API_KEY;
     const elevenLabsVoiceId = settings?.apiKeys?.elevenLabsVoiceId || process.env.ELEVENLABS_VOICE_ID;
+    
+    console.log("🔑 getApiKeys - Final keys:", {
+      anthropicSource: settings?.apiKeys?.anthropic ? "USER_DB" : "ENV",
+      anthropicLength: anthropic?.length || 0,
+      hasEnvKey: !!process.env.ANTHROPIC_API_KEY,
+    });
 
     // Check for missing keys and add warnings
     if (!anthropic) {

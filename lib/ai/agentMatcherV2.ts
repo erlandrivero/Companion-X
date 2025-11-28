@@ -19,6 +19,7 @@ export async function analyzeQuestionWithSkills(
   suggestNewAgent?: boolean;
   suggestNewSkill?: boolean;
   suggestion?: string;
+  needsClarification?: boolean;
 }> {
   // If no agents available, suggest creating one
   if (agents.length === 0) {
@@ -181,7 +182,31 @@ Analyze and determine the best match.`;
     });
 
     if (!response.toolUse || response.toolUse.name !== "match_agent_with_recommendation") {
-      console.error("❌ No tool use in response. Content:", response.content);
+      console.log("❌ No tool use in response. Content:", response.content);
+      
+      // Check if Claude is asking for clarification
+      const contentLower = response.content.toLowerCase();
+      const isAskingForClarification = 
+        contentLower.includes("clarify") ||
+        contentLower.includes("rephrase") ||
+        contentLower.includes("unclear") ||
+        contentLower.includes("garbled") ||
+        contentLower.includes("incoherent") ||
+        contentLower.includes("could you");
+      
+      if (isAskingForClarification) {
+        console.log("💬 Claude is asking for clarification - returning special response");
+        return {
+          matchedAgent: null,
+          confidence: 0,
+          reasoning: response.content,
+          suggestNewAgent: false,
+          suggestNewSkill: false,
+          suggestion: response.content,
+          needsClarification: true,
+        };
+      }
+      
       throw new Error("No tool use in response");
     }
 
