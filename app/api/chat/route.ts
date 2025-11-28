@@ -660,6 +660,13 @@ CRITICAL: If search results are provided above, you MUST reference them specific
 - ${responseLengthInstructions[userResponseLength]}
 - EXCEPTION: You MAY include plain URLs (https://...) for places, attractions, articles, or resources you mention - these will be automatically made clickable
 
+CONVERSATION CONTEXT AWARENESS:
+- You have access to the full conversation history
+- If the user changes topics (e.g., from data analytics to weather), recognize the shift and adapt your expertise accordingly
+- Don't assume the new question relates to previous topics unless explicitly connected
+- Each question should be answered on its own merits while being aware of conversation flow
+- Example: If discussing data mining, then user asks "What's the weather?", treat it as a new topic about weather, not data
+
 `;
 
     // Add file context if files were uploaded
