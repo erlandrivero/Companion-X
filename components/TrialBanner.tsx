@@ -9,13 +9,16 @@ interface TrialBannerProps {
 
 export function TrialBanner({ onOpenSettings }: TrialBannerProps) {
   const [isVisible, setIsVisible] = useState(true);
+  const [isLoading, setIsLoading] = useState(true);
   const [usageStats, setUsageStats] = useState<{
-    tokensUsed: number;
-    tokensLimit: number;
-    requestsUsed: number;
-    requestsLimit: number;
-    costUsed: number;
-    costLimit: number;
+    onTrial: boolean;
+    hasCustomKey: boolean;
+    tokensUsed?: number;
+    tokensLimit?: number;
+    requestsUsed?: number;
+    requestsLimit?: number;
+    costUsed?: number;
+    costLimit?: number;
   } | null>(null);
 
   useEffect(() => {
@@ -29,15 +32,20 @@ export function TrialBanner({ onOpenSettings }: TrialBannerProps) {
         }
       } catch (error) {
         console.error("Failed to fetch usage stats:", error);
+      } finally {
+        setIsLoading(false);
       }
     };
 
     fetchUsageStats();
   }, []);
 
-  if (!isVisible) return null;
+  // Don't show banner if not visible, loading, or user has custom key
+  if (!isVisible || isLoading || !usageStats || !usageStats.onTrial) {
+    return null;
+  }
 
-  const tokensPercent = usageStats 
+  const tokensPercent = usageStats.tokensUsed && usageStats.tokensLimit
     ? Math.min((usageStats.tokensUsed / usageStats.tokensLimit) * 100, 100)
     : 0;
 
@@ -93,7 +101,7 @@ export function TrialBanner({ onOpenSettings }: TrialBannerProps) {
                 : "You have limited free credits. Add your own Anthropic API key for unlimited access."}
             </p>
 
-            {usageStats && (
+            {usageStats && usageStats.tokensUsed !== undefined && usageStats.tokensLimit !== undefined && (
               <div className="mb-2">
                 <div className="flex items-center justify-between text-xs mb-1">
                   <span className={
@@ -103,7 +111,7 @@ export function TrialBanner({ onOpenSettings }: TrialBannerProps) {
                       ? "text-orange-700 dark:text-orange-300"
                       : "text-blue-700 dark:text-blue-300"
                   }>
-                    {usageStats.tokensUsed.toLocaleString()} / {usageStats.tokensLimit.toLocaleString()} tokens used
+                    {usageStats.tokensUsed?.toLocaleString() || 0} / {usageStats.tokensLimit?.toLocaleString() || 0} tokens used
                   </span>
                   <span className={
                     isAtLimit 
