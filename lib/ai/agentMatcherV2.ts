@@ -358,29 +358,38 @@ function fallbackKeywordMatch(
 
   const confidence = Math.min(bestScore / 10, 0.7);
 
-  // Mimic AI behavior:
-  // - If agent matched with decent confidence → suggest adding a skill
-  // - If no good match → suggest creating a new agent
-  const hasDecentMatch = confidence >= 0.4 && !!bestMatch;
-  const hasWeakMatch = confidence >= 0.2 && confidence < 0.4 && !!bestMatch;
-  const noMatch = confidence < 0.2;
+  // Improved matching logic:
+  // - Strong match (>= 0.5): Use the agent, suggest skill if question is complex
+  // - Decent match (0.3-0.5): Use the agent, suggest skill
+  // - Weak match (0.15-0.3): Use the agent but warn about uncertainty
+  // - No match (< 0.15): Only then suggest creating new agent
+  const hasStrongMatch = confidence >= 0.5 && !!bestMatch;
+  const hasDecentMatch = confidence >= 0.3 && confidence < 0.5 && !!bestMatch;
+  const hasWeakMatch = confidence >= 0.15 && confidence < 0.3 && !!bestMatch;
+  const noMatch = confidence < 0.15;
+
+  // Determine if question seems complex enough to warrant a skill
+  const questionWords = question.split(/\s+/).length;
+  const seemsComplex = questionWords > 5 || question.includes('?');
 
   return {
     matchedAgent: bestMatch,
     confidence,
-    reasoning: hasDecentMatch
-      ? "Keyword-based match found (fallback method)"
-      : noMatch
-      ? "No suitable agent found using keyword matching"
-      : "Weak match found (fallback method)",
-    // Suggest new agent only if no match at all
-    suggestNewAgent: noMatch,
-    // Suggest new skill if we have a match (decent or weak)
-    suggestNewSkill: hasDecentMatch || hasWeakMatch,
+    reasoning: hasStrongMatch
+      ? `Matched to ${bestMatch?.name} based on keyword analysis (fallback mode - AI matching unavailable)`
+      : hasDecentMatch
+      ? `Matched to ${bestMatch?.name} with moderate confidence (fallback mode)`
+      : hasWeakMatch
+      ? `Tentatively matched to ${bestMatch?.name} (fallback mode - match may not be ideal)`
+      : "No suitable agent found using keyword matching",
+    // Only suggest new agent if truly no match
+    suggestNewAgent: noMatch && agents.length < 50,
+    // Suggest skill for decent/strong matches with complex questions
+    suggestNewSkill: (hasStrongMatch && seemsComplex) || hasDecentMatch,
     // Extract a skill name from the question for skill suggestion
-    suggestion: (hasDecentMatch || hasWeakMatch)
+    suggestion: ((hasStrongMatch && seemsComplex) || hasDecentMatch)
       ? extractSkillNameFromQuestion(question)
-      : noMatch
+      : noMatch && agents.length < 50
       ? "Consider creating a new specialized agent"
       : undefined,
   };
