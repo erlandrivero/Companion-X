@@ -472,32 +472,38 @@ export async function POST(request: NextRequest) {
       // Try multiple search strategies to find Medium articles
       console.log("📰 Trying multiple search strategies for Medium articles...");
       
-      // Strategy 1: Full name with recent filter
+      // Strategy 1: Full name with RECENT filter (past month) - prioritize latest
       const query1 = `"${fullName}" site:medium.com`;
-      console.log("  Strategy 1:", query1);
-      publishedResults = await searchWeb(query1, 3, braveApiKey, "py"); // Past year
+      console.log("  Strategy 1 (recent):", query1);
+      publishedResults = await searchWeb(query1, 5, braveApiKey, "pm"); // Past month - most recent
       
-      // Strategy 2: First and last name separately (if no results from strategy 1)
+      // Strategy 2: If no recent articles, try past year with more results
+      if (publishedResults.results.length === 0) {
+        console.log("  Strategy 2 (past year):", query1);
+        publishedResults = await searchWeb(query1, 10, braveApiKey, "py"); // Past year, more results
+      }
+      
+      // Strategy 3: First and last name separately (if no results from strategy 1 & 2)
       if (publishedResults.results.length === 0) {
         const query2 = `${firstName} ${lastName} site:medium.com`;
-        console.log("  Strategy 2:", query2);
-        const results2 = await searchWeb(query2, 3, braveApiKey, "py");
+        console.log("  Strategy 3 (name parts):", query2);
+        const results2 = await searchWeb(query2, 10, braveApiKey, "py");
         publishedResults = results2;
       }
       
-      // Strategy 3: Just last name + medium (if still no results)
+      // Strategy 4: Just last name + medium (if still no results)
       if (publishedResults.results.length === 0) {
         const query3 = `${lastName} site:medium.com author`;
-        console.log("  Strategy 3:", query3);
-        const results3 = await searchWeb(query3, 3, braveApiKey, "py");
+        console.log("  Strategy 4 (last name):", query3);
+        const results3 = await searchWeb(query3, 10, braveApiKey, "py");
         publishedResults = results3;
       }
       
-      // Strategy 4: Broader Medium search with context (last resort)
+      // Strategy 5: Broader Medium search with context (last resort)
       if (publishedResults.results.length === 0) {
         const query4 = `${fullName} medium article AI data`;
-        console.log("  Strategy 4 (broad):", query4);
-        const results4 = await searchWeb(query4, 5, braveApiKey, "py");
+        console.log("  Strategy 5 (broad):", query4);
+        const results4 = await searchWeb(query4, 10, braveApiKey, "py");
         publishedResults = results4;
       }
       
