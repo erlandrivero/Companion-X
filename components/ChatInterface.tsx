@@ -806,11 +806,21 @@ export function ChatInterface({ sessionId: initialSessionId, onAgentCreated }: C
         
         // Re-send the pending question with the enhanced agent
         // BUT: Don't re-send if it was an explicit skill creation request (to prevent loops)
+        console.log("📋 Pending question check:", {
+          hasPendingQuestion: !!pendingQuestion,
+          pendingQuestion,
+        });
+        
         if (pendingQuestion) {
           const isExplicitSkillRequest = (
             (pendingQuestion.toLowerCase().includes('add') || pendingQuestion.toLowerCase().includes('create')) &&
             (pendingQuestion.toLowerCase().includes('skill') || pendingQuestion.toLowerCase().includes('skills'))
           );
+          
+          console.log("🔍 Explicit skill request check:", {
+            isExplicitSkillRequest,
+            questionLower: pendingQuestion.toLowerCase(),
+          });
           
           if (isExplicitSkillRequest) {
             console.log("⏭️ Skipping re-send of explicit skill request to prevent loop");
@@ -820,11 +830,15 @@ export function ChatInterface({ sessionId: initialSessionId, onAgentCreated }: C
             const questionToSend = pendingQuestion;
             setPendingQuestion(null);
             
-            // Wait a moment for skill to be fully loaded, then send
+            // Wait for skill to be fully loaded in database, then send
+            // Increased timeout to ensure skill is available for matching
             setTimeout(() => {
+              console.log("📤 Actually sending message now:", questionToSend);
               sendMessage(questionToSend);
-            }, 500);
+            }, 1000);
           }
+        } else {
+          console.log("⚠️ No pending question to re-send");
         }
       } else {
         console.error("Failed to create skill");
