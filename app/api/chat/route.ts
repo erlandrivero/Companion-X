@@ -6,7 +6,7 @@ import { generateAgentProfile } from "@/lib/ai/agentCreator";
 import { sendMessageHaiku, streamMessageHaiku } from "@/lib/ai/claude";
 import { getUserAgents } from "@/lib/db/agentDb";
 import { createAgent, incrementQuestionsHandled } from "@/lib/db/agentDb";
-import { createConversation, addMessage } from "@/lib/db/conversationDb";
+import { createConversation, addMessage, getConversation } from "@/lib/db/conversationDb";
 import { logUsage } from "@/lib/db/usageDb";
 import { checkUserRateLimit } from "@/lib/ai/rateLimiter";
 import { RateLimitError } from "@/lib/ai/errorHandler";
@@ -702,6 +702,22 @@ Speak naturally. No formatting. Ever.` + webContext;
       systemPrompt = buildSystemPromptWithSkills(systemPrompt, matchedSkills);
     }
 
+    // Load conversation history if conversationId exists
+    let conversationHistory: Array<{ role: "user" | "assistant"; content: string }> = [];
+    if (conversationId) {
+      const conversation = await getConversation(conversationId, userId);
+      if (conversation && conversation.messages) {
+        // Convert messages to Claude format, filtering out system messages
+        conversationHistory = conversation.messages
+          .filter((msg) => msg.role === "user" || msg.role === "assistant")
+          .map((msg) => ({
+            role: msg.role as "user" | "assistant",
+            content: msg.content,
+          }));
+        console.log(`📚 Loaded ${conversationHistory.length} messages from conversation history`);
+      }
+    }
+
     // If streaming is requested, use streaming API
     if (stream) {
       return handleStreamingResponse({
@@ -715,6 +731,7 @@ Speak naturally. No formatting. Ever.` + webContext;
         conversationId,
         voiceEnabled,
         imageFiles,
+        conversationHistory,
       });
     }
 
@@ -724,6 +741,7 @@ Speak naturally. No formatting. Ever.` + webContext;
       enableCaching: !!agentUsed,
       temperature: userTemperature, // Use user's temperature preference
       apiKey: userApiKey, // Use user's custom API key if they have one
+      conversationHistory, // Pass conversation history for context
     });
 
     // Strip any markdown that slipped through (safety net)
@@ -855,6 +873,7 @@ async function handleStreamingResponse(params: {
   conversationId?: string;
   voiceEnabled: boolean;
   imageFiles?: Array<{name: string; base64: string; mediaType: string}>;
+  conversationHistory?: Array<{ role: "user" | "assistant"; content: string }>;
 }) {
   const {
     message,
@@ -867,6 +886,7 @@ async function handleStreamingResponse(params: {
     conversationId,
     voiceEnabled,
     imageFiles = [],
+    conversationHistory = [],
   } = params;
 
   const encoder = new TextEncoder();
@@ -923,6 +943,7 @@ async function handleStreamingResponse(params: {
           temperature: streamTemperature, // Use user's temperature preference
           apiKey: streamUserApiKey, // Use user's custom API key if they have one
           images: imageFiles, // Pass images for vision
+          conversationHistory, // Pass conversation history for context
         });
 
         for await (const chunk of streamResponse) {

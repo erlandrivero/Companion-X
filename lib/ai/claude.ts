@@ -24,6 +24,7 @@ export interface ClaudeOptions {
   apiKey?: string; // Allow custom API key
   tools?: Anthropic.Messages.Tool[];
   images?: Array<{ base64: string; mediaType: string }>; // Vision support
+  conversationHistory?: Array<{ role: "user" | "assistant"; content: string }>; // Multi-turn conversation
 }
 
 /**
@@ -56,6 +57,7 @@ export async function sendMessageHaiku(
     temperature = 1.0,
     apiKey,
     images = [],
+    conversationHistory = [],
   } = options;
 
   const anthropic = getAnthropicClient(apiKey);
@@ -100,17 +102,24 @@ export async function sendMessageHaiku(
       text: userMessage,
     });
 
+    // Build full conversation with history
+    const allMessages: Anthropic.Messages.MessageParam[] = [
+      ...conversationHistory.map((msg) => ({
+        role: msg.role,
+        content: msg.content,
+      })),
+      {
+        role: "user" as const,
+        content: images.length > 0 ? messageContent : userMessage,
+      },
+    ];
+
     const response = await anthropic.messages.create({
       model: CLAUDE_MODELS.HAIKU,
       max_tokens: maxTokens,
       temperature,
       system: systemMessages.length > 0 ? systemMessages : undefined,
-      messages: [
-        {
-          role: "user",
-          content: images.length > 0 ? messageContent : userMessage,
-        },
-      ],
+      messages: allMessages,
     });
 
     const content =
@@ -297,6 +306,7 @@ export async function streamMessageHaiku(
     temperature = 1.0,
     apiKey,
     images = [],
+    conversationHistory = [],
   } = options;
 
   const anthropic = getAnthropicClient(apiKey);
@@ -340,17 +350,24 @@ export async function streamMessageHaiku(
       text: userMessage,
     });
 
+    // Build full conversation with history
+    const allMessages: Anthropic.Messages.MessageParam[] = [
+      ...conversationHistory.map((msg) => ({
+        role: msg.role,
+        content: msg.content,
+      })),
+      {
+        role: "user" as const,
+        content: images.length > 0 ? messageContent : userMessage,
+      },
+    ];
+
     const stream = await anthropic.messages.stream({
       model: CLAUDE_MODELS.HAIKU,
       max_tokens: maxTokens,
       temperature,
       system: systemMessages.length > 0 ? systemMessages : undefined,
-      messages: [
-        {
-          role: "user",
-          content: images.length > 0 ? messageContent : userMessage,
-        },
-      ],
+      messages: allMessages,
     });
 
     return stream;
