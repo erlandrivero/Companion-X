@@ -253,9 +253,16 @@ Analyze and determine the best match.`;
       suggestion,
     };
   } catch (error) {
-    console.error("Agent matching error:", error);
+    console.error("❌ Agent matching error:", error);
+    console.error("❌ Error details:", {
+      message: error instanceof Error ? error.message : String(error),
+      hasApiKey: !!apiKey,
+      apiKeyLength: apiKey?.length || 0,
+      agentCount: agents.length,
+    });
     
     // Fallback to simple keyword matching
+    console.log("⚠️ Falling back to keyword matching (Claude API failed)");
     return fallbackKeywordMatch(question, agents);
   }
 }
