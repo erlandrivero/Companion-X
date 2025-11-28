@@ -540,6 +540,11 @@ export async function POST(request: NextRequest) {
       totalResults: uniqueResults.length
     };
     
+    const isAskingForLatest = correctedMessage.toLowerCase().includes('latest') || 
+                               correctedMessage.toLowerCase().includes('last') ||
+                               correctedMessage.toLowerCase().includes('recent') ||
+                               correctedMessage.toLowerCase().includes('newest');
+    
     const webContext = allResults.results.length > 0 
       ? `\n\n=== CURRENT WEB SEARCH RESULTS ===
 ${formatSearchResults(allResults)}
@@ -548,11 +553,12 @@ MANDATORY INSTRUCTIONS - YOU MUST FOLLOW THESE:
 1. The search results above contain REAL, CURRENT information from the web
 2. When the user asks about publications or articles, YOU MUST list the specific articles from the search results above
 3. DO NOT give generic responses - USE THE ACTUAL TITLES AND URLS from the search results
-4. Format: "Here are the articles I found: [Article Title 1] at [URL1], [Article Title 2] at [URL2]"
+4. ${isAskingForLatest ? 'THE USER ASKED FOR THE LATEST/LAST/MOST RECENT ARTICLE - Look at the search results and identify which article appears to be the MOST RECENT (look for dates, "ago" indicators, or position in results). START with that article.' : 'Format: "Here are the articles I found: [Article Title 1] at [URL1], [Article Title 2] at [URL2]"'}
 5. If Medium articles appear in search results, LIST EACH ONE with its title and URL
 6. NEVER say "I don't have access" or "check my profile" when search results are provided - CITE THE RESULTS DIRECTLY
 7. The URLs in the search results are REAL and CURRENT - include them in your response
 8. Example response: "I found these Medium articles: Understanding AI Ethics https://medium.com/@author/ai-ethics-123 and Machine Learning Basics https://medium.com/@author/ml-basics-456"
+${isAskingForLatest ? '\n⚠️ CRITICAL: User specifically asked for LATEST/LAST/RECENT - prioritize the most recent article from the search results!' : ''}
 
 CRITICAL: If search results are provided above, you MUST reference them specifically in your answer.`
       : "";
