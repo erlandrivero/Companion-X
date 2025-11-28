@@ -22,8 +22,27 @@ export async function POST(request: NextRequest) {
   try {
     const session = await auth();
     
+    // Check if user is authenticated
+    // In production, require authentication. In development, allow fallback.
+    const isDevelopment = process.env.NODE_ENV === 'development' || process.env.NEXT_PUBLIC_APP_URL?.includes('localhost');
+    
+    if (!session?.user?.email && !isDevelopment) {
+      console.error("❌ No session found in production");
+      return NextResponse.json(
+        { error: "Authentication required. Please log in again." },
+        { status: 401 }
+      );
+    }
+    
     // For local testing without auth, use a default user
     const userId = session?.user?.email || "demo@localhost.dev";
+    
+    console.log("🔐 Auth check:", {
+      hasSession: !!session,
+      userId,
+      isDevelopment,
+      environment: process.env.NODE_ENV,
+    });
     const { 
       message, 
       conversationId, 
@@ -125,6 +144,15 @@ export async function POST(request: NextRequest) {
 
     // Get user's agents
     const agents = await getUserAgents(userId);
+    
+    console.log("🔍 DEBUG - Agent retrieval:", {
+      userId,
+      agentCount: agents.length,
+      agentNames: agents.map(a => a.name),
+      environment: process.env.NODE_ENV,
+      isProduction: !isDevelopment,
+      mongoUri: process.env.MONGODB_URI ? "SET (Atlas)" : "NOT SET (localhost)",
+    });
 
     // Check if user is explicitly requesting to add a skill (only if not skipping agent matching)
     // This prevents infinite loops when user declines skill suggestion

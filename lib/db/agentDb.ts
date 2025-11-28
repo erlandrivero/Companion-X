@@ -63,10 +63,18 @@ export async function getUserAgents(userId: string): Promise<Agent[]> {
   const db = await getDatabase();
   const collection = db.collection<Agent>(COLLECTION_NAME);
 
+  console.log("🔍 getUserAgents called with userId:", userId);
+  console.log("🔍 Database:", db.databaseName);
+  console.log("🔍 Collection:", COLLECTION_NAME);
+
   const agents = await collection
     .find({ userId })
     .sort({ "performanceMetrics.lastUsed": -1 })
     .toArray();
+
+  console.log("🔍 Found agents:", agents.length);
+  console.log("🔍 Agent names:", agents.map(a => a.name));
+  console.log("🔍 Agent userIds:", agents.map(a => a.userId));
 
   return agents.map((agent) => ({
     ...agent,

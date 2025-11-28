@@ -150,6 +150,11 @@ export function ChatInterface({ sessionId: initialSessionId, onAgentCreated }: C
       });
 
       if (!response.ok) {
+        // Handle authentication errors
+        if (response.status === 401) {
+          const errorData = await response.json().catch(() => ({ error: "Authentication required" }));
+          throw new Error(`Authentication required: ${errorData.error || 'Please log in again'}`);
+        }
         throw new Error(`API error: ${response.status}`);
       }
 
@@ -339,15 +344,25 @@ export function ChatInterface({ sessionId: initialSessionId, onAgentCreated }: C
     } catch (error) {
       console.error("Chat error:", error);
       
+      // Check if it's an authentication error
+      const isAuthError = error instanceof Error && error.message.includes("Authentication required");
+      
       const errorMessage: Message = {
         role: "assistant",
-        content: "Sorry, I encountered an error. Please try again.",
+        content: isAuthError 
+          ? "Your session has expired. Please refresh the page and log in again to continue." 
+          : "Sorry, I encountered an error. Please try again.",
         agentUsed: null,
         timestamp: new Date(),
         voiceEnabled: false,
       };
 
       setMessages((prev) => [...prev, errorMessage]);
+      
+      // If auth error, log for debugging
+      if (isAuthError) {
+        console.log("⚠️ Session expired - user needs to log in again");
+      }
     } finally {
       setIsLoading(false);
       
