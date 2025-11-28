@@ -477,6 +477,9 @@ export function ChatInterface({ sessionId: initialSessionId, onAgentCreated }: C
       .replace(/#{1,6}\s/g, '') // Remove headers
       .replace(/`{1,3}/g, '') // Remove code blocks
       .replace(/\[([^\]]+)\]\([^\)]+\)/g, '$1') // Convert links to just text
+      // Remove URLs (http://, https://, www.)
+      .replace(/https?:\/\/[^\s]+/g, '') // Remove http/https URLs
+      .replace(/www\.[^\s]+/g, '') // Remove www URLs
       // Remove special symbols that sound weird
       .replace(/[•◦▪▫]/g, '') // Remove bullet points
       .replace(/[→←↑↓]/g, '') // Remove arrows

@@ -19,6 +19,14 @@ const DEFAULT_OPTIONS: WebSpeechOptions = {
 };
 
 /**
+ * Remove URLs from text to prevent them from being read aloud
+ */
+function stripUrlsFromText(text: string): string {
+  // Remove URLs (http://, https://, www.)
+  return text.replace(/https?:\/\/[^\s]+/g, '').replace(/www\.[^\s]+/g, '').trim();
+}
+
+/**
  * Synthesize speech using Web Speech API
  * Returns a promise that resolves when speech is complete
  */
@@ -32,7 +40,9 @@ export function synthesizeSpeechWebSpeech(
       return;
     }
 
-    const utterance = new SpeechSynthesisUtterance(text);
+    // Strip URLs from text before speaking
+    const cleanText = stripUrlsFromText(text);
+    const utterance = new SpeechSynthesisUtterance(cleanText);
     
     // Apply options
     utterance.lang = options.lang || DEFAULT_OPTIONS.lang!;
