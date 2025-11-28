@@ -55,6 +55,7 @@ export async function POST(request: NextRequest) {
     let skipAgentMatching = false;
     let uploadedFiles: File[] = [];
     let fileContext = '';
+    let imageFiles: Array<{name: string; base64: string; mediaType: string}> = [];
 
     if (contentType.includes('multipart/form-data')) {
       // Handle file upload
@@ -79,9 +80,24 @@ export async function POST(request: NextRequest) {
         
         uploadedFiles.push(file);
         
-        // Process file on server and add to context
-        const fileContent = await processFileOnServer(file);
-        fileContext += `--- BEGIN FILE: ${file.name} ---\n${fileContent}\n--- END FILE: ${file.name} ---\n\n`;
+        // Check if file is an image
+        const isImage = file.type.startsWith('image/');
+        
+        if (isImage) {
+          // Process images for vision API
+          const arrayBuffer = await file.arrayBuffer();
+          const base64 = Buffer.from(arrayBuffer).toString('base64');
+          imageFiles.push({
+            name: file.name,
+            base64,
+            mediaType: file.type,
+          });
+          fileContext += `[Image: ${file.name}]\n\n`;
+        } else {
+          // Process other files normally
+          const fileContent = await processFileOnServer(file);
+          fileContext += `--- BEGIN FILE: ${file.name} ---\n${fileContent}\n--- END FILE: ${file.name} ---\n\n`;
+        }
       }
       
       if (uploadedFiles.length > 0) {

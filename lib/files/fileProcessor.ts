@@ -153,7 +153,7 @@ export function getSupportedFileTypes(): string[] {
     '.html', '.css', '.sql', '.sh', '.yaml', '.yml',
     // Images
     '.jpg', '.jpeg', '.png', '.gif', '.webp', '.svg',
-    // Documents (limited support for now)
-    '.pdf', '.docx',
+    // Documents
+    '.pdf', '.docx', '.xlsx', '.xls',
   ];
 }

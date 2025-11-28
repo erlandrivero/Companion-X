@@ -4,7 +4,32 @@
  */
 
 import mammoth from 'mammoth';
+import * as XLSX from 'xlsx';
 const pdfParse = require('pdf-parse');
+
+/**
+ * Extract text from Excel file
+ */
+export async function extractExcelText(buffer: Buffer, fileName: string): Promise<string> {
+  try {
+    const workbook = XLSX.read(buffer, { type: 'buffer' });
+    let result = `[Excel Document: ${fileName}]\n\n`;
+    
+    // Process each sheet
+    workbook.SheetNames.forEach((sheetName, index) => {
+      const sheet = workbook.Sheets[sheetName];
+      const csvData = XLSX.utils.sheet_to_csv(sheet);
+      
+      result += `--- Sheet ${index + 1}: ${sheetName} ---\n`;
+      result += csvData + '\n\n';
+    });
+    
+    return result;
+  } catch (error) {
+    console.error('Excel extraction error:', error);
+    return `[Excel Document: ${fileName}]\nError extracting data from Excel file. The file may be corrupted.`;
+  }
+}
 
 /**
  * Extract text from PDF file
@@ -54,6 +79,16 @@ export async function processFileOnServer(file: File): Promise<string> {
     fileName.endsWith('.docx')
   ) {
     return await extractDocxText(buffer, file.name);
+  }
+  
+  // Excel files
+  if (
+    fileType === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' ||
+    fileType === 'application/vnd.ms-excel' ||
+    fileName.endsWith('.xlsx') ||
+    fileName.endsWith('.xls')
+  ) {
+    return await extractExcelText(buffer, file.name);
   }
   
   // For other files, just read as text

@@ -1,8 +1,10 @@
 "use client";
 
 import { useState } from "react";
-import { X, Copy, Download, Check, Code2, FileText } from "lucide-react";
+import { X, Copy, Download, Check, Code2, FileText, Eye } from "lucide-react";
 import type { Artifact } from "@/lib/artifacts/artifactDetector";
+import { Prism as SyntaxHighlighter } from 'react-syntax-highlighter';
+import { vscDarkPlus } from 'react-syntax-highlighter/dist/esm/styles/prism';
 
 interface ArtifactViewerProps {
   artifacts: Artifact[];
@@ -12,10 +14,12 @@ interface ArtifactViewerProps {
 export function ArtifactViewer({ artifacts, onClose }: ArtifactViewerProps) {
   const [selectedIndex, setSelectedIndex] = useState(0);
   const [copied, setCopied] = useState(false);
+  const [showPreview, setShowPreview] = useState(false);
   
   if (artifacts.length === 0) return null;
   
   const currentArtifact = artifacts[selectedIndex];
+  const canPreview = currentArtifact.type === 'html' || currentArtifact.type === 'svg';
   
   const handleCopy = async () => {
     await navigator.clipboard.writeText(currentArtifact.content);
@@ -49,6 +53,20 @@ export function ArtifactViewer({ artifacts, onClose }: ArtifactViewerProps) {
         </div>
         
         <div className="flex items-center gap-2">
+          {canPreview && (
+            <button
+              onClick={() => setShowPreview(!showPreview)}
+              className={`p-2 rounded-lg transition-colors ${
+                showPreview 
+                  ? 'bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400' 
+                  : 'hover:bg-gray-100 dark:hover:bg-gray-800'
+              }`}
+              title={showPreview ? "Show code" : "Show preview"}
+            >
+              <Eye className="w-5 h-5" />
+            </button>
+          )}
+          
           <button
             onClick={handleCopy}
             className="p-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"
@@ -100,11 +118,40 @@ export function ArtifactViewer({ artifacts, onClose }: ArtifactViewerProps) {
       
       {/* Content */}
       <div className="flex-1 overflow-auto p-4">
-        <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-4 font-mono text-sm overflow-x-auto">
-          <pre className="whitespace-pre-wrap break-words">
-            <code>{currentArtifact.content}</code>
-          </pre>
-        </div>
+        {showPreview && canPreview ? (
+          // Preview mode for HTML/SVG
+          <div className="bg-white dark:bg-gray-900 rounded-lg border border-gray-200 dark:border-gray-700 overflow-hidden">
+            {currentArtifact.type === 'html' ? (
+              <iframe
+                srcDoc={currentArtifact.content}
+                className="w-full h-[600px] border-0"
+                sandbox="allow-scripts"
+                title="HTML Preview"
+              />
+            ) : currentArtifact.type === 'svg' ? (
+              <div 
+                className="p-4 flex items-center justify-center"
+                dangerouslySetInnerHTML={{ __html: currentArtifact.content }}
+              />
+            ) : null}
+          </div>
+        ) : (
+          // Code view with syntax highlighting
+          <div className="rounded-lg overflow-hidden">
+            <SyntaxHighlighter
+              language={currentArtifact.language || 'text'}
+              style={vscDarkPlus}
+              showLineNumbers
+              customStyle={{
+                margin: 0,
+                borderRadius: '0.5rem',
+                fontSize: '0.875rem',
+              }}
+            >
+              {currentArtifact.content}
+            </SyntaxHighlighter>
+          </div>
+        )}
         
         {/* Metadata */}
         <div className="mt-4 text-xs text-gray-500 dark:text-gray-400">
