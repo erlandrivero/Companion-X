@@ -168,6 +168,7 @@ export function ChatInterface({ sessionId: initialSessionId, onAgentCreated }: C
     setIsLoading(true);
 
     // Add a placeholder assistant message for streaming
+    // Calculate index after user message is added: current length + 1 (for user) + 0 (for assistant position)
     const assistantMessageIndex = messages.length + 1;
     const assistantMessage: Message = {
       role: "assistant",
@@ -176,7 +177,10 @@ export function ChatInterface({ sessionId: initialSessionId, onAgentCreated }: C
       timestamp: new Date(),
       voiceEnabled,
     };
-    setMessages((prev) => [...prev, assistantMessage]);
+    setMessages((prev) => {
+      console.log(`📍 Adding assistant message at index ${prev.length} (current length: ${prev.length})`);
+      return [...prev, assistantMessage];
+    });
 
     try {
       // Prepare request body (FormData if files attached, JSON otherwise)
@@ -256,11 +260,16 @@ export function ChatInterface({ sessionId: initialSessionId, onAgentCreated }: C
                 fullResponse += data.text;
                 // Update the assistant message in real-time
                 setMessages((prev) => {
+                  console.log(`📝 Updating message at index ${assistantMessageIndex}, array length: ${prev.length}`);
                   const newMessages = [...prev];
-                  newMessages[assistantMessageIndex] = {
-                    ...newMessages[assistantMessageIndex],
-                    content: fullResponse,
-                  };
+                  if (assistantMessageIndex < prev.length) {
+                    newMessages[assistantMessageIndex] = {
+                      ...newMessages[assistantMessageIndex],
+                      content: fullResponse,
+                    };
+                  } else {
+                    console.error(`❌ Invalid index ${assistantMessageIndex} for array length ${prev.length}`);
+                  }
                   return newMessages;
                 });
               } else if (data.type === "agent_suggestion") {

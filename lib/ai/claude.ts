@@ -369,6 +369,12 @@ export async function streamMessageHaiku(
     // Debug log to verify message structure
     console.log(`🔍 [streamMessageHaiku] Sending ${allMessages.length} messages to Claude:`, 
       allMessages.map((m, i) => `${i}: ${m.role}`).join(', '));
+    console.log(`📝 [streamMessageHaiku] Message details:`, 
+      allMessages.map((m, i) => ({
+        index: i,
+        role: m.role,
+        contentPreview: typeof m.content === 'string' ? m.content.substring(0, 100) : '[complex content]'
+      })));
 
     const stream = await anthropic.messages.stream({
       model: CLAUDE_MODELS.HAIKU,
