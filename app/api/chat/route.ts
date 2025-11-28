@@ -71,12 +71,17 @@ export async function POST(request: NextRequest) {
     }
 
     // Check if user has custom API keys and get AI settings
-    const { anthropic: userApiKey } = await getApiKeys(userId);
+    const { anthropic: userApiKey, warnings } = await getApiKeys(userId);
     const hasCustomKey = !!userApiKey && userApiKey !== process.env.ANTHROPIC_API_KEY;
     
     console.log("🔑 User:", userId);
     console.log("🔑 Has custom API key:", hasCustomKey);
     console.log("🔑 User key exists:", !!userApiKey);
+    console.log("🔑 User key length:", userApiKey?.length || 0);
+    console.log("🔑 User key starts with:", userApiKey?.substring(0, 10) || "N/A");
+    console.log("🔑 API key warnings:", warnings);
+    console.log("🔑 Env key exists:", !!process.env.ANTHROPIC_API_KEY);
+    console.log("🔑 Env key length:", process.env.ANTHROPIC_API_KEY?.length || 0);
     
     // Get user's AI preferences
     const userSettings = await getUserSettings(userId);
@@ -272,6 +277,13 @@ export async function POST(request: NextRequest) {
       const allSkillsPromises = agents.map(agent => getAgentSkills(agent._id!.toString()));
       const allSkillsArrays = await Promise.all(allSkillsPromises);
       const allSkills = allSkillsArrays.flat();
+
+      console.log("🔍 Before analyzeQuestionWithSkills:", {
+        hasUserApiKey: !!userApiKey,
+        userApiKeyLength: userApiKey?.length || 0,
+        agentsCount: agents.length,
+        skillsCount: allSkills.length,
+      });
 
       // Use enhanced matching with skills consideration
       matchResult = await analyzeQuestionWithSkills(correctedMessage, agents, allSkills, userApiKey);
