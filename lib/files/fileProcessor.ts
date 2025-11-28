@@ -1,11 +1,7 @@
 /**
- * File Processing Utility
- * Extracts content from various file types for Claude context
+ * File Processing Utility (Client-Side)
+ * Client-side file handling - actual processing happens on server
  */
-
-import mammoth from 'mammoth';
-// @ts-ignore - pdf-parse has module resolution issues
-import pdfParse from 'pdf-parse/lib/pdf-parse.js';
 
 export interface ProcessedFile {
   name: string;
@@ -100,32 +96,16 @@ async function extractTextContent(file: File): Promise<string> {
     return await file.text();
   }
   
-  // PDF files - extract text using pdf-parse
+  // PDF and DOCX files - will be processed on server
   if (fileType === 'application/pdf' || fileName.endsWith('.pdf')) {
-    try {
-      const arrayBuffer = await file.arrayBuffer();
-      const buffer = Buffer.from(arrayBuffer);
-      const data = await pdfParse(buffer);
-      return `[PDF Document: ${file.name}]\n\n${data.text}`;
-    } catch (error) {
-      console.error('PDF extraction error:', error);
-      return `[PDF Document: ${file.name}]\nError extracting text from PDF. The file may be corrupted or password-protected.`;
-    }
+    return `[PDF Document: ${file.name} - will be processed on server]`;
   }
   
-  // DOCX files - extract text using mammoth
   if (
     fileType === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' ||
     fileName.endsWith('.docx')
   ) {
-    try {
-      const arrayBuffer = await file.arrayBuffer();
-      const result = await mammoth.extractRawText({ arrayBuffer });
-      return `[Word Document: ${file.name}]\n\n${result.value}`;
-    } catch (error) {
-      console.error('DOCX extraction error:', error);
-      return `[Word Document: ${file.name}]\nError extracting text from DOCX. The file may be corrupted.`;
-    }
+    return `[Word Document: ${file.name} - will be processed on server]`;
   }
   
   // Unsupported file type

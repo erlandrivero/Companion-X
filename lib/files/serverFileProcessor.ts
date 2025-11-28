@@ -1,0 +1,61 @@
+/**
+ * Server-Side File Processing
+ * Handles PDF and DOCX extraction using Node.js libraries
+ */
+
+import mammoth from 'mammoth';
+const pdfParse = require('pdf-parse');
+
+/**
+ * Extract text from PDF file
+ */
+export async function extractPdfText(buffer: Buffer, fileName: string): Promise<string> {
+  try {
+    const data = await pdfParse(buffer);
+    return `[PDF Document: ${fileName}]\n\n${data.text}`;
+  } catch (error) {
+    console.error('PDF extraction error:', error);
+    return `[PDF Document: ${fileName}]\nError extracting text from PDF. The file may be corrupted or password-protected.`;
+  }
+}
+
+/**
+ * Extract text from DOCX file
+ */
+export async function extractDocxText(buffer: Buffer, fileName: string): Promise<string> {
+  try {
+    const result = await mammoth.extractRawText({ buffer });
+    return `[Word Document: ${fileName}]\n\n${result.value}`;
+  } catch (error) {
+    console.error('DOCX extraction error:', error);
+    return `[Word Document: ${fileName}]\nError extracting text from DOCX. The file may be corrupted.`;
+  }
+}
+
+/**
+ * Process file on server and extract text content
+ */
+export async function processFileOnServer(file: File): Promise<string> {
+  const fileName = file.name.toLowerCase();
+  const fileType = file.type;
+  
+  // Get file as buffer
+  const arrayBuffer = await file.arrayBuffer();
+  const buffer = Buffer.from(arrayBuffer);
+  
+  // PDF files
+  if (fileType === 'application/pdf' || fileName.endsWith('.pdf')) {
+    return await extractPdfText(buffer, file.name);
+  }
+  
+  // DOCX files
+  if (
+    fileType === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' ||
+    fileName.endsWith('.docx')
+  ) {
+    return await extractDocxText(buffer, file.name);
+  }
+  
+  // For other files, just read as text
+  return await file.text();
+}

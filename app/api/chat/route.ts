@@ -17,7 +17,8 @@ import { checkUsageLimits, recordUsage } from "@/lib/db/usageLimitsDb";
 import { getUserSettings } from "@/lib/db/settingsDb";
 import { correctTyposAndVoiceErrors } from "@/lib/ai/typoCorrection";
 import { searchWeb, formatSearchResults } from "@/lib/search/webSearch";
-import { processFile, formatFileForContext, validateFileSize } from "@/lib/files/fileProcessor";
+import { validateFileSize } from "@/lib/files/fileProcessor";
+import { processFileOnServer } from "@/lib/files/serverFileProcessor";
 import { detectArtifacts } from "@/lib/artifacts/artifactDetector";
 
 export async function POST(request: NextRequest) {
@@ -78,9 +79,9 @@ export async function POST(request: NextRequest) {
         
         uploadedFiles.push(file);
         
-        // Process file and add to context
-        const processedFile = await processFile(file);
-        fileContext += formatFileForContext(processedFile) + '\n\n';
+        // Process file on server and add to context
+        const fileContent = await processFileOnServer(file);
+        fileContext += `--- BEGIN FILE: ${file.name} ---\n${fileContent}\n--- END FILE: ${file.name} ---\n\n`;
       }
       
       if (uploadedFiles.length > 0) {
