@@ -1,13 +1,16 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import { Send, Loader2, Sparkles, Download, Zap } from "lucide-react";
+import { Send, Loader2, Sparkles, Download, Zap, Paperclip, X } from "lucide-react";
 import { MessageBubble } from "./MessageBubble";
 import { VoiceControls } from "./VoiceControls";
 import { ExportModal } from "./ExportModal";
+import { ArtifactViewer } from "./ArtifactViewer";
 import { Message } from "@/types/conversation";
 import { Agent } from "@/types/agent";
 import { generateSessionId } from "@/lib/utils/formatters";
+import type { Artifact } from "@/lib/artifacts/artifactDetector";
+import { getSupportedFileTypes } from "@/lib/files/fileProcessor";
 
 interface ChatInterfaceProps {
   sessionId?: string;
@@ -37,6 +40,12 @@ export function ChatInterface({ sessionId: initialSessionId, onAgentCreated }: C
   const [currentVolume, setCurrentVolume] = useState(1.0);
   const [isAudioPlaying, setIsAudioPlaying] = useState(false);
   const [currentAgent, setCurrentAgent] = useState<{name: string; description: string} | null>(null);
+  
+  // File upload and artifacts
+  const [attachedFiles, setAttachedFiles] = useState<File[]>([]);
+  const [artifacts, setArtifacts] = useState<Artifact[]>([]);
+  const [showArtifacts, setShowArtifacts] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   
   // Voice settings from user preferences
   const [voiceSpeed, setVoiceSpeed] = useState(1.15);
@@ -105,9 +114,26 @@ export function ChatInterface({ sessionId: initialSessionId, onAgentCreated }: C
   useEffect(() => {
     if (inputRef.current) {
       inputRef.current.style.height = 'auto';
-      inputRef.current.style.height = Math.min(inputRef.current.scrollHeight, 200) + 'px';
+      inputRef.current.style.height = `${inputRef.current.scrollHeight}px`;
     }
   }, [input]);
+
+  // File upload handlers
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    if (files.length > 0) {
+      setAttachedFiles(prev => [...prev, ...files]);
+      console.log(`📎 Attached ${files.length} file(s):`, files.map(f => f.name));
+    }
+    // Reset input so same file can be selected again
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
+  const removeFile = (index: number) => {
+    setAttachedFiles(prev => prev.filter((_, i) => i !== index));
+  };
 
   // Function to send a message (can be called programmatically)
   const sendMessage = async (messageText: string, skipAgentMatching: boolean = false) => {
@@ -136,18 +162,47 @@ export function ChatInterface({ sessionId: initialSessionId, onAgentCreated }: C
     setMessages((prev) => [...prev, assistantMessage]);
 
     try {
-      // Call the chat API with streaming
-      const response = await fetch("/api/chat", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
+      // Prepare request body (FormData if files attached, JSON otherwise)
+      let requestBody: FormData | string;
+      let requestHeaders: HeadersInit = {};
+      
+      if (attachedFiles.length > 0) {
+        // Use FormData for file uploads
+        const formData = new FormData();
+        formData.append('message', messageText);
+        formData.append('conversationId', sessionId);
+        formData.append('voiceEnabled', voiceEnabled.toString());
+        formData.append('stream', 'true');
+        formData.append('skipAgentMatching', skipAgentMatching.toString());
+        
+        // Append all files
+        attachedFiles.forEach(file => {
+          formData.append('files', file);
+        });
+        
+        requestBody = formData;
+        // Don't set Content-Type header - browser will set it with boundary
+      } else {
+        // Use JSON for regular messages
+        requestHeaders = { "Content-Type": "application/json" };
+        requestBody = JSON.stringify({
           message: messageText,
           conversationId: sessionId,
           voiceEnabled,
           stream: true,
-          skipAgentMatching, // Flag to bypass agent matching
-        }),
+          skipAgentMatching,
+        });
+      }
+      
+      // Call the chat API with streaming
+      const response = await fetch("/api/chat", {
+        method: "POST",
+        headers: requestHeaders,
+        body: requestBody,
       });
+      
+      // Clear attached files after sending
+      setAttachedFiles([]);
 
       if (!response.ok) {
         // Handle authentication errors
@@ -261,6 +316,13 @@ export function ChatInterface({ sessionId: initialSessionId, onAgentCreated }: C
               } else if (data.type === "done") {
                 // Streaming complete
                 console.log("Streaming complete. Usage:", data.usage);
+                
+                // Check for artifacts in the response
+                if (data.artifacts && data.artifacts.length > 0) {
+                  console.log(`📦 Received ${data.artifacts.length} artifact(s)`);
+                  setArtifacts(data.artifacts);
+                  setShowArtifacts(true);
+                }
               } else if (data.type === "error") {
                 throw new Error(data.error);
               }
@@ -1044,8 +1106,54 @@ export function ChatInterface({ sessionId: initialSessionId, onAgentCreated }: C
             />
           )}
 
+          {/* File Upload Button */}
+          <button
+            onClick={() => fileInputRef.current?.click()}
+            disabled={isLoading}
+            className="flex-shrink-0 w-12 h-12 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 disabled:bg-gray-100 dark:disabled:bg-gray-800 text-gray-700 dark:text-gray-300 rounded-full flex items-center justify-center transition-colors disabled:cursor-not-allowed"
+            title="Attach files"
+          >
+            <Paperclip className="w-5 h-5" />
+          </button>
+          
+          {/* Hidden file input */}
+          <input
+            ref={fileInputRef}
+            type="file"
+            multiple
+            accept={getSupportedFileTypes().join(',')}
+            onChange={handleFileSelect}
+            className="hidden"
+          />
+
           {/* Text Input */}
           <div className="flex-1 relative">
+            {/* Attached Files Preview */}
+            {attachedFiles.length > 0 && (
+              <div className="absolute bottom-full left-0 right-0 mb-2 flex flex-wrap gap-2 p-2 bg-gray-50 dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
+                {attachedFiles.map((file, index) => (
+                  <div
+                    key={index}
+                    className="flex items-center gap-2 px-3 py-1.5 bg-white dark:bg-gray-700 rounded-lg border border-gray-200 dark:border-gray-600 text-sm"
+                  >
+                    <Paperclip className="w-4 h-4 text-gray-500" />
+                    <span className="text-gray-700 dark:text-gray-300 max-w-[150px] truncate">
+                      {file.name}
+                    </span>
+                    <span className="text-xs text-gray-500">
+                      ({(file.size / 1024).toFixed(1)}KB)
+                    </span>
+                    <button
+                      onClick={() => removeFile(index)}
+                      className="ml-1 text-gray-500 hover:text-red-500 transition-colors"
+                    >
+                      <X className="w-4 h-4" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+            
             <textarea
               ref={inputRef}
               value={input}
@@ -1263,6 +1371,14 @@ export function ChatInterface({ sessionId: initialSessionId, onAgentCreated }: C
             </div>
           </div>
         </div>
+      )}
+      
+      {/* Artifact Viewer */}
+      {showArtifacts && artifacts.length > 0 && (
+        <ArtifactViewer
+          artifacts={artifacts}
+          onClose={() => setShowArtifacts(false)}
+        />
       )}
     </div>
   );
