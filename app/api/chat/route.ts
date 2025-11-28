@@ -534,17 +534,20 @@ export async function POST(request: NextRequest) {
     };
     
     const webContext = allResults.results.length > 0 
-      ? `\n\nCURRENT WEB INFORMATION (Articles, Publications, and General Info):\n${formatSearchResults(allResults)}\n\nCRITICAL INSTRUCTIONS FOR USING WEB SOURCES:
-1. When referencing articles or publications, ALWAYS include the full URL from the search results above
-2. Format references as: "I wrote about this in [Article Title] (URL: [exact URL from search results])"
-3. If Medium articles are found in the search results, LIST THEM with their URLs
-4. Prioritize Medium and published articles over general information
-5. If the user asks about your publications and Medium articles are found, provide SPECIFIC article titles and URLs
-6. Example: "I've published several articles on Medium, including 'Building AI Agents' (URL: https://medium.com/@author/building-ai-agents-abc123) and 'Data Analytics Best Practices' (URL: https://medium.com/@author/data-analytics-xyz789)"
-7. DO NOT say "I don't have access" if the search results contain the information - USE THE SEARCH RESULTS
-8. If no Medium articles are found in search results, then you can say you don't have specific links available
+      ? `\n\n=== CURRENT WEB SEARCH RESULTS ===
+${formatSearchResults(allResults)}
 
-Use these sources to provide accurate, well-cited responses with actual URLs.`
+MANDATORY INSTRUCTIONS - YOU MUST FOLLOW THESE:
+1. The search results above contain REAL, CURRENT information from the web
+2. When the user asks about publications or articles, YOU MUST list the specific articles from the search results above
+3. DO NOT give generic responses - USE THE ACTUAL TITLES AND URLS from the search results
+4. Format: "Here are the articles I found: [Article Title 1] at [URL1], [Article Title 2] at [URL2]"
+5. If Medium articles appear in search results, LIST EACH ONE with its title and URL
+6. NEVER say "I don't have access" or "check my profile" when search results are provided - CITE THE RESULTS DIRECTLY
+7. The URLs in the search results are REAL and CURRENT - include them in your response
+8. Example response: "I found these Medium articles: Understanding AI Ethics https://medium.com/@author/ai-ethics-123 and Machine Learning Basics https://medium.com/@author/ml-basics-456"
+
+CRITICAL: If search results are provided above, you MUST reference them specifically in your answer.`
       : "";
     
     console.log(`📊 Web search: ${allResults.results.length} unique results (${searchResults.results.length} general, ${publishedResults.results.length} published, ${academicResults.results.length} academic)`);
