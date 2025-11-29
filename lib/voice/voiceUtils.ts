@@ -315,6 +315,8 @@ export class SpeechRecognitionManager {
    */
   stopListening(): void {
     if (this.recognition && this.isListening) {
+      // Clear onResult callback to prevent auto-restart in onend handler
+      this.onResult = undefined;
       this.recognition.stop();
       this.isListening = false;
     }
