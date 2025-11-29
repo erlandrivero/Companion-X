@@ -27,6 +27,7 @@ export function ChatInterface({ sessionId: initialSessionId, onAgentCreated }: C
   const [agentSuggestion, setAgentSuggestion] = useState<{topic: string; reasoning: string} | null>(null);
   const [skillSuggestion, setSkillSuggestion] = useState<{agentId: string; agentName: string; skillName: string; reasoning: string} | null>(null);
   const [pendingQuestion, setPendingQuestion] = useState<string | null>(null); // Store question waiting for agent
+  const [pendingFiles, setPendingFiles] = useState<File[]>([]); // Store files waiting for agent/skill
   
   // Debug: Log when agentSuggestion changes
   useEffect(() => {
@@ -277,6 +278,7 @@ export function ChatInterface({ sessionId: initialSessionId, onAgentCreated }: C
                 console.log("📨 Received agent suggestion:", data.suggestion);
                 setAgentSuggestion(data.suggestion);
                 setPendingQuestion(messageText); // Store the original question
+                setPendingFiles([...attachedFiles]); // Store the attached files
               } else if (data.type === "skill_suggestion") {
                 // Show skill suggestion dialog and store the question
                 console.log("🎓 Received skill suggestion:", data.suggestion);
@@ -289,6 +291,7 @@ export function ChatInterface({ sessionId: initialSessionId, onAgentCreated }: C
                   return data.suggestion;
                 });
                 setPendingQuestion(messageText); // Store the original question
+                setPendingFiles([...attachedFiles]); // Store the attached files
               } else if (data.type === "waiting_for_decision") {
                 // Stop loading - waiting for user to decide on agent creation
                 console.log("⏸️ Waiting for user decision on agent creation");
@@ -916,20 +919,27 @@ export function ChatInterface({ sessionId: initialSessionId, onAgentCreated }: C
           if (isExplicitSkillRequest) {
             console.log("⏭️ Skipping re-send of explicit skill request to prevent loop");
             setPendingQuestion(null);
+            setPendingFiles([]);
           } else {
             console.log("🔄 Re-sending question with enhanced agent:", pendingQuestion);
             const questionToSend = pendingQuestion;
+            const filesToSend = [...pendingFiles];
             setPendingQuestion(null);
+            setPendingFiles([]);
             
             // Wait for skill to be fully loaded in database, then send
             // Increased timeout to ensure skill is available for matching
             setTimeout(() => {
               console.log("📤 Actually sending message now:", questionToSend);
+              console.log("📎 Re-attaching files:", filesToSend.map(f => f.name));
+              // Restore the files before sending
+              setAttachedFiles(filesToSend);
               sendMessage(questionToSend);
             }, 1000);
           }
         } else {
           console.log("⚠️ No pending question to re-send");
+          setPendingFiles([]); // Clear pending files if no question to send
         }
       } else {
         console.error("Failed to create skill");
@@ -966,10 +976,15 @@ export function ChatInterface({ sessionId: initialSessionId, onAgentCreated }: C
         if (pendingQuestion) {
           console.log("🔄 Re-sending question with new agent:", pendingQuestion);
           const questionToSend = pendingQuestion;
+          const filesToSend = [...pendingFiles];
           setPendingQuestion(null);
+          setPendingFiles([]);
           
           // Wait a moment for agent to be fully loaded, then send
           setTimeout(() => {
+            console.log("📎 Re-attaching files:", filesToSend.map(f => f.name));
+            // Restore the files before sending
+            setAttachedFiles(filesToSend);
             sendMessage(questionToSend);
           }, 500);
         }
@@ -1257,8 +1272,12 @@ export function ChatInterface({ sessionId: initialSessionId, onAgentCreated }: C
                   // Re-send question with skipAgentMatching flag to use generic assistant
                   if (pendingQuestion) {
                     const questionToSend = pendingQuestion;
+                    const filesToSend = [...pendingFiles];
                     setPendingQuestion(null);
+                    setPendingFiles([]);
                     setTimeout(() => {
+                      console.log("📎 Re-attaching files:", filesToSend.map(f => f.name));
+                      setAttachedFiles(filesToSend);
                       sendMessage(questionToSend, true); // true = skip agent matching
                     }, 100);
                   }
@@ -1320,8 +1339,12 @@ export function ChatInterface({ sessionId: initialSessionId, onAgentCreated }: C
                   // Re-send question with skipAgentMatching flag (agent will respond without new skill)
                   if (pendingQuestion) {
                     const questionToSend = pendingQuestion;
+                    const filesToSend = [...pendingFiles];
                     setPendingQuestion(null);
+                    setPendingFiles([]);
                     setTimeout(() => {
+                      console.log("📎 Re-attaching files:", filesToSend.map(f => f.name));
+                      setAttachedFiles(filesToSend);
                       sendMessage(questionToSend, true); // true = skip agent matching (use current agent)
                     }, 100);
                   }
