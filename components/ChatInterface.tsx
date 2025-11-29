@@ -386,6 +386,13 @@ export function ChatInterface({ sessionId: initialSessionId, onAgentCreated }: C
       if (voiceEnabled && fullResponse && fullResponse.trim().length > 0 && !isAgentCreationResponse) {
         console.log("✅ Starting voice synthesis for:", fullResponse.substring(0, 50) + "...");
         console.log("📊 Full response length:", fullResponse.length);
+        
+        // Stop voice recognition before AI starts speaking to prevent feedback loop
+        if (voiceControlsRef.current) {
+          console.log("🎤 Stopping voice recognition before AI speaks");
+          voiceControlsRef.current.stopListening();
+        }
+        
         try {
           // Try ElevenLabs first (server-side)
           const voiceResponse = await fetch("/api/voice/synthesize", {
@@ -794,11 +801,6 @@ export function ChatInterface({ sessionId: initialSessionId, onAgentCreated }: C
             setTimeout(() => {
               console.log("📤 Actually sending message now:", questionToSend);
               console.log("📎 Re-attaching files:", filesToSend.map(f => f.name));
-              // Stop voice recognition to prevent feedback loop
-              if (voiceControlsRef.current && voiceEnabled) {
-                console.log("🎤 Stopping voice recognition before retry");
-                voiceControlsRef.current.stopListening();
-              }
               // Restore the files before sending
               setAttachedFiles(filesToSend);
               sendMessage(questionToSend);
@@ -850,11 +852,6 @@ export function ChatInterface({ sessionId: initialSessionId, onAgentCreated }: C
           // Wait a moment for agent to be fully loaded, then send
           setTimeout(() => {
             console.log("📎 Re-attaching files:", filesToSend.map(f => f.name));
-            // Stop voice recognition to prevent feedback loop
-            if (voiceControlsRef.current && voiceEnabled) {
-              console.log("🎤 Stopping voice recognition before retry");
-              voiceControlsRef.current.stopListening();
-            }
             // Restore the files before sending
             setAttachedFiles(filesToSend);
             sendMessage(questionToSend);
@@ -1149,11 +1146,6 @@ export function ChatInterface({ sessionId: initialSessionId, onAgentCreated }: C
                     setPendingFiles([]);
                     setTimeout(() => {
                       console.log("📎 Re-attaching files:", filesToSend.map(f => f.name));
-                      // Stop voice recognition to prevent feedback loop
-                      if (voiceControlsRef.current && voiceEnabled) {
-                        console.log("🎤 Stopping voice recognition before retry");
-                        voiceControlsRef.current.stopListening();
-                      }
                       setAttachedFiles(filesToSend);
                       sendMessage(questionToSend, true); // true = skip agent matching
                     }, 100);
@@ -1221,11 +1213,6 @@ export function ChatInterface({ sessionId: initialSessionId, onAgentCreated }: C
                     setPendingFiles([]);
                     setTimeout(() => {
                       console.log("📎 Re-attaching files:", filesToSend.map(f => f.name));
-                      // Stop voice recognition to prevent feedback loop
-                      if (voiceControlsRef.current && voiceEnabled) {
-                        console.log("🎤 Stopping voice recognition before retry");
-                        voiceControlsRef.current.stopListening();
-                      }
                       setAttachedFiles(filesToSend);
                       sendMessage(questionToSend, true); // true = skip agent matching (use current agent)
                     }, 100);
