@@ -21,7 +21,7 @@ interface VoiceControlsProps {
   voiceService?: "elevenlabs" | "web-speech" | "auto";
 }
 
-export const VoiceControls = forwardRef<{ restartListening: () => void; clearTranscript: () => void }, VoiceControlsProps>(
+export const VoiceControls = forwardRef<{ restartListening: () => void; clearTranscript: () => void; stopListening: () => void }, VoiceControlsProps>(
   function VoiceControls({
     onTranscript,
     onSpeakText,
@@ -186,6 +186,10 @@ export const VoiceControls = forwardRef<{ restartListening: () => void; clearTra
     },
     clearTranscript: () => {
       clearTranscript();
+    },
+    stopListening: () => {
+      console.log("🛑 Stopping voice recognition from parent");
+      stopListening();
     }
   }));
 
