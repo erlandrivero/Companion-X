@@ -511,8 +511,19 @@ export async function POST(request: NextRequest) {
     console.log("🔍 Performing web search for current information...");
     const braveApiKey = userSettings?.apiKeys?.braveSearch;
     
-    // Primary search - general information
-    const searchResults = await searchWeb(correctedMessage, 3, braveApiKey);
+    // Detect if user is asking about prices, costs, or hotel information
+    const messageLowerForPricing = correctedMessage.toLowerCase();
+    const isAskingAboutPricing = messageLowerForPricing.includes('price') || 
+                                  messageLowerForPricing.includes('cost') ||
+                                  messageLowerForPricing.includes('room') ||
+                                  messageLowerForPricing.includes('hotel') ||
+                                  messageLowerForPricing.includes('booking') ||
+                                  messageLowerForPricing.includes('rate') ||
+                                  messageLowerForPricing.includes('how much');
+    
+    // Primary search - general information (more results for pricing queries)
+    const primarySearchCount = isAskingAboutPricing ? 8 : 3;
+    const searchResults = await searchWeb(correctedMessage, primarySearchCount, braveApiKey);
     
     // Search for published content (articles, blog posts, papers)
     // If asking about publications/articles and an agent is being used, search for that agent's name + Medium
@@ -596,12 +607,21 @@ export async function POST(request: NextRequest) {
     console.log("📚 Searching for academic and research content...");
     const academicResults = await searchWeb(academicQuery, 2, braveApiKey);
     
+    // Additional search for pricing/hotel information if detected
+    let pricingResults: Awaited<ReturnType<typeof searchWeb>> = { results: [], query: '', totalResults: 0 };
+    if (isAskingAboutPricing) {
+      const pricingQuery = `${correctedMessage} booking.com OR hotels.com OR tripadvisor OR expedia 2024 2025`;
+      console.log("💰 Searching for pricing information:", pricingQuery);
+      pricingResults = await searchWeb(pricingQuery, 5, braveApiKey);
+    }
+    
     // Combine all results, removing duplicates by URL
     const seenUrls = new Set<string>();
     const uniqueResults = [
       ...searchResults.results,
       ...publishedResults.results,
-      ...academicResults.results
+      ...academicResults.results,
+      ...pricingResults.results
     ].filter(result => {
       if (seenUrls.has(result.url)) {
         return false;
@@ -635,11 +655,12 @@ MANDATORY INSTRUCTIONS - YOU MUST FOLLOW THESE:
 7. The URLs in the search results are REAL and CURRENT - include them in your response
 8. Example response: "I found these Medium articles: Understanding AI Ethics https://medium.com/@author/ai-ethics-123 and Machine Learning Basics https://medium.com/@author/ml-basics-456"
 ${isAskingForLatest ? '\n⚠️ CRITICAL: User specifically asked for LATEST/LAST/RECENT - prioritize the most recent article from the search results!' : ''}
+${isAskingAboutPricing ? '\n\n💰 PRICING INFORMATION INSTRUCTIONS:\n- The user is asking about PRICES, COSTS, or HOTEL RATES\n- The search results above contain REAL pricing information from booking sites\n- YOU MUST extract and provide the specific prices, room types, and rates mentioned in the search results\n- Include the booking site URLs where users can verify and book\n- DO NOT say you cannot provide prices - the search results contain this information\n- Example: "Based on current rates, the Monte Carlo Hotel offers rooms starting at 500 euros per night for a standard room. You can check availability at https://booking.com/monte-carlo or https://hotels.com/monte-carlo"' : ''}
 
 CRITICAL: If search results are provided above, you MUST reference them specifically in your answer.`
       : "";
     
-    console.log(`📊 Web search: ${allResults.results.length} unique results (${searchResults.results.length} general, ${publishedResults.results.length} published, ${academicResults.results.length} academic)`);
+    console.log(`📊 Web search: ${allResults.results.length} unique results (${searchResults.results.length} general, ${publishedResults.results.length} published, ${academicResults.results.length} academic${isAskingAboutPricing ? `, ${pricingResults.results.length} pricing` : ''})`);
 
     // Generate response using matched/created agent or general assistant
     // Adjust base prompt based on user's response length preference
