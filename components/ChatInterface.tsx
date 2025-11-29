@@ -165,12 +165,6 @@ export function ChatInterface({ sessionId: initialSessionId, onAgentCreated }: C
       voiceEnabled,
     };
 
-    setMessages((prev) => [...prev, userMessage]);
-    setIsLoading(true);
-
-    // Add a placeholder assistant message for streaming
-    // Calculate index after user message is added: current length + 1 (for user) + 0 (for assistant position)
-    const assistantMessageIndex = messages.length + 1;
     const assistantMessage: Message = {
       role: "assistant",
       content: "",
@@ -178,10 +172,17 @@ export function ChatInterface({ sessionId: initialSessionId, onAgentCreated }: C
       timestamp: new Date(),
       voiceEnabled,
     };
+
+    // Add both user and assistant messages in a single state update to ensure correct indexing
+    // This prevents race conditions when multiple messages are sent quickly
+    let assistantMessageIndex = -1;
     setMessages((prev) => {
-      console.log(`📍 Adding assistant message at index ${prev.length} (current length: ${prev.length})`);
-      return [...prev, assistantMessage];
+      assistantMessageIndex = prev.length + 1; // User at prev.length, assistant at prev.length + 1
+      console.log(`📍 Adding user message at index ${prev.length} and assistant at index ${assistantMessageIndex}`);
+      return [...prev, userMessage, assistantMessage];
     });
+    
+    setIsLoading(true);
 
     try {
       // Prepare request body (FormData if files attached, JSON otherwise)
@@ -263,11 +264,16 @@ export function ChatInterface({ sessionId: initialSessionId, onAgentCreated }: C
                 setMessages((prev) => {
                   console.log(`📝 Updating message at index ${assistantMessageIndex}, array length: ${prev.length}`);
                   const newMessages = [...prev];
-                  if (assistantMessageIndex < prev.length) {
-                    newMessages[assistantMessageIndex] = {
-                      ...newMessages[assistantMessageIndex],
-                      content: fullResponse,
-                    };
+                  if (assistantMessageIndex >= 0 && assistantMessageIndex < prev.length) {
+                    // Verify this is still an assistant message (safety check)
+                    if (newMessages[assistantMessageIndex].role === "assistant") {
+                      newMessages[assistantMessageIndex] = {
+                        ...newMessages[assistantMessageIndex],
+                        content: fullResponse,
+                      };
+                    } else {
+                      console.error(`❌ Index ${assistantMessageIndex} is not an assistant message!`);
+                    }
                   } else {
                     console.error(`❌ Invalid index ${assistantMessageIndex} for array length ${prev.length}`);
                   }
@@ -650,150 +656,6 @@ export function ChatInterface({ sessionId: initialSessionId, onAgentCreated }: C
           voiceControlsRef.current.clearTranscript();
         }
       }, autoSendDelay * 1000); // Use user's delay setting (convert to ms)
-    }
-  };
-
-  const sendVoiceMessage = async (messageText: string, assistantMessageIndex: number) => {
-    try {
-      const response = await fetch("/api/chat", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          message: messageText,
-          conversationId: sessionId,
-          voiceEnabled,
-          stream: true,
-        }),
-      });
-
-      if (!response.ok) {
-        throw new Error(`API error: ${response.status}`);
-      }
-
-      const reader = response.body?.getReader();
-      const decoder = new TextDecoder();
-      let fullResponse = "";
-      let agentCreatedData: any = null;
-
-      if (!reader) {
-        throw new Error("No response body");
-      }
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-
-        const chunk = decoder.decode(value);
-        const lines = chunk.split("\n");
-
-        for (const line of lines) {
-          if (line.startsWith("data: ")) {
-            try {
-              const data = JSON.parse(line.slice(6));
-
-              if (data.type === "content") {
-                fullResponse += data.text;
-                setMessages((prev) => {
-                  const newMessages = [...prev];
-                  newMessages[assistantMessageIndex] = {
-                    ...newMessages[assistantMessageIndex],
-                    content: fullResponse,
-                  };
-                  return newMessages;
-                });
-              } else if (data.type === "agent_created") {
-                agentCreatedData = data.agent;
-                if (onAgentCreated) {
-                  const agentResponse = await fetch(`/api/agents?id=${data.agent.id}`);
-                  if (agentResponse.ok) {
-                    const agentData = await agentResponse.json();
-                    onAgentCreated(agentData.agent);
-                  }
-                }
-              }
-            } catch (e) {
-              console.error("Error parsing SSE data:", e);
-            }
-          }
-        }
-      }
-
-      // Voice synthesis
-      const isAgentCreationResponse = fullResponse.includes("AGENT PROFILE") || agentCreatedData !== null;
-
-      if (voiceEnabled && fullResponse && fullResponse.trim().length > 0 && !isAgentCreationResponse) {
-        try {
-          const voiceResponse = await fetch("/api/voice/synthesize", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ text: fullResponse }),
-          });
-
-          if (voiceResponse.ok) {
-            const service = voiceResponse.headers.get("X-Voice-Service");
-            console.log("Voice service used:", service);
-            
-            if (service === "elevenlabs") {
-              const audioData = await voiceResponse.arrayBuffer();
-              const audioBlob = new Blob([audioData], { type: "audio/mpeg" });
-              const audioUrl = URL.createObjectURL(audioBlob);
-              
-              const audio = new Audio(audioUrl);
-              audio.volume = 1.0;
-              currentAudioRef.current = audio;
-              setIsAudioPlaying(true);
-              
-              audio.onended = () => {
-                URL.revokeObjectURL(audioUrl);
-                currentAudioRef.current = null;
-                setIsAudioPlaying(false);
-              };
-              audio.onerror = () => {
-                console.error("Audio playback error, falling back to Web Speech");
-                URL.revokeObjectURL(audioUrl);
-                currentAudioRef.current = null;
-                setIsAudioPlaying(false);
-                speakWithWebSpeech(fullResponse);
-              };
-              
-              await audio.play();
-            } else {
-              speakWithWebSpeech(fullResponse);
-            }
-          } else {
-            console.log("ElevenLabs unavailable, using Web Speech fallback");
-            speakWithWebSpeech(fullResponse);
-          }
-        } catch (voiceError) {
-          console.log("Voice API unavailable, using Web Speech fallback:", voiceError instanceof Error ? voiceError.message : String(voiceError));
-          speakWithWebSpeech(fullResponse);
-        }
-      }
-    } catch (error) {
-      console.error("Chat error:", error);
-      
-      const errorMessage: Message = {
-        role: "assistant",
-        content: "Sorry, I encountered an error. Please try again.",
-        agentUsed: null,
-        timestamp: new Date(),
-        voiceEnabled: false,
-      };
-
-      setMessages((prev) => [...prev, errorMessage]);
-    } finally {
-      setIsLoading(false);
-      
-      // Clear input
-      setInput("");
-      if (inputRef.current) {
-        inputRef.current.style.height = '48px';
-      }
-      
-      // Don't restart listening here - let the voice finish speaking first
-      if (!voiceEnabled) {
-        inputRef.current?.focus();
-      }
     }
   };
 
