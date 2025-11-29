@@ -5,7 +5,31 @@
 
 import mammoth from 'mammoth';
 import * as XLSX from 'xlsx';
-import * as pdfjsLib from 'pdfjs-dist/legacy/build/pdf.mjs';
+
+// Polyfill DOM APIs for serverless environment
+if (typeof DOMMatrix === 'undefined') {
+  (global as any).DOMMatrix = class DOMMatrix {
+    constructor() {
+      // Minimal polyfill for pdfjs-dist
+    }
+  };
+}
+
+if (typeof Path2D === 'undefined') {
+  (global as any).Path2D = class Path2D {
+    constructor() {
+      // Minimal polyfill for pdfjs-dist
+    }
+  };
+}
+
+if (typeof ImageData === 'undefined') {
+  (global as any).ImageData = class ImageData {
+    constructor(width: number, height: number) {
+      // Minimal polyfill for pdfjs-dist
+    }
+  };
+}
 
 /**
  * Extract text from Excel file
@@ -36,6 +60,9 @@ export async function extractExcelText(buffer: Buffer, fileName: string): Promis
  */
 export async function extractPdfText(buffer: Buffer, fileName: string): Promise<string> {
   try {
+    // Dynamically import pdfjs-dist to avoid loading DOM dependencies at module level
+    const pdfjsLib = await import('pdfjs-dist/legacy/build/pdf.mjs');
+    
     // Load the PDF document
     const loadingTask = pdfjsLib.getDocument({
       data: new Uint8Array(buffer),
