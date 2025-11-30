@@ -839,6 +839,7 @@ Speak naturally. No formatting. Ever.` + webContext;
       role: "user",
       content: message,
       agentUsed: agentUsed?._id?.toString() || null,
+      agentName: agentUsed?.name || undefined,
       timestamp: new Date(),
       voiceEnabled: voiceEnabled || false,
     });
@@ -847,6 +848,7 @@ Speak naturally. No formatting. Ever.` + webContext;
       role: "assistant",
       content: response,
       agentUsed: agentUsed?._id?.toString() || null,
+      agentName: agentUsed?.name || undefined,
       timestamp: new Date(),
       voiceEnabled: voiceEnabled || false,
     });
@@ -1058,6 +1060,7 @@ async function handleStreamingResponse(params: {
           role: "user",
           content: message,
           agentUsed: agentUsed?._id?.toString() || null,
+          agentName: agentUsed?.name || undefined,
           timestamp: new Date(),
           voiceEnabled: voiceEnabled || false,
         });
@@ -1066,6 +1069,7 @@ async function handleStreamingResponse(params: {
           role: "assistant",
           content: fullResponse,
           agentUsed: agentUsed?._id?.toString() || null,
+          agentName: agentUsed?.name || undefined,
           timestamp: new Date(),
           voiceEnabled: voiceEnabled || false,
         });
