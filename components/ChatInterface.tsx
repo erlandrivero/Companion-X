@@ -131,6 +131,18 @@ export function ChatInterface({ sessionId: initialSessionId, onAgentCreated }: C
         console.log(`📚 Loaded conversation with ${conversation.messages.length} messages`);
         setMessages(conversation.messages);
         setSessionId(convId);
+        
+        // Extract agent info from the conversation messages
+        const assistantMessage = conversation.messages.find((m: Message) => m.role === "assistant" && m.agentName);
+        if (assistantMessage && assistantMessage.agentName) {
+          setCurrentAgent({
+            name: assistantMessage.agentName,
+            description: "" // We don't have description in messages, but name is enough
+          });
+          console.log(`🤖 Loaded agent: ${assistantMessage.agentName}`);
+        } else {
+          setCurrentAgent(null);
+        }
       } else {
         console.error("Failed to load conversation");
       }
