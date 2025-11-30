@@ -15,6 +15,7 @@ interface DashboardStats {
 export function Dashboard() {
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [isLoading, setIsLoading] = useState(true);
+  const [isRecalculating, setIsRecalculating] = useState(false);
 
   useEffect(() => {
     loadStats();
@@ -46,6 +47,31 @@ export function Dashboard() {
       console.error("Failed to load stats:", error);
     } finally {
       setIsLoading(false);
+    }
+  };
+
+  const recalculateCosts = async () => {
+    setIsRecalculating(true);
+    try {
+      const response = await fetch("/api/usage/recalculate", {
+        method: "POST",
+      });
+      
+      if (response.ok) {
+        const result = await response.json();
+        console.log("✅ Costs recalculated:", result);
+        // Reload stats to show updated costs
+        await loadStats();
+        alert(`Recalculation complete!\n\nLogs updated: ${result.logsUpdated}\nOld total: $${result.oldTotal}\nNew total: $${result.newTotal}\nDifference: $${result.difference} (${result.percentChange}%)`);
+      } else {
+        console.error("Failed to recalculate costs");
+        alert("Failed to recalculate costs. Please try again.");
+      }
+    } catch (error) {
+      console.error("Error recalculating costs:", error);
+      alert("Error recalculating costs. Please try again.");
+    } finally {
+      setIsRecalculating(false);
     }
   };
 
@@ -168,7 +194,7 @@ export function Dashboard() {
       </div>
 
       {/* Quick Actions */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
         <button className="bg-gradient-to-r from-purple-500 to-blue-600 text-white rounded-xl p-6 hover:shadow-lg transition-all">
           <h4 className="font-semibold mb-2">Start Chatting</h4>
           <p className="text-sm opacity-90">Begin a new conversation</p>
@@ -180,6 +206,16 @@ export function Dashboard() {
         <button className="bg-gradient-to-r from-green-500 to-emerald-600 text-white rounded-xl p-6 hover:shadow-lg transition-all">
           <h4 className="font-semibold mb-2">View Usage</h4>
           <p className="text-sm opacity-90">Check detailed statistics</p>
+        </button>
+        <button 
+          onClick={recalculateCosts}
+          disabled={isRecalculating}
+          className="bg-gradient-to-r from-orange-500 to-red-600 text-white rounded-xl p-6 hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          <h4 className="font-semibold mb-2">
+            {isRecalculating ? "Recalculating..." : "Recalculate Costs"}
+          </h4>
+          <p className="text-sm opacity-90">Update with new pricing</p>
         </button>
       </div>
     </div>
