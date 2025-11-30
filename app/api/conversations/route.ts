@@ -55,7 +55,13 @@ export async function GET(request: NextRequest) {
       };
     });
     
-    return NextResponse.json(formattedConversations);
+    return NextResponse.json(formattedConversations, {
+      headers: {
+        'Cache-Control': 'no-store, no-cache, must-revalidate, proxy-revalidate',
+        'Pragma': 'no-cache',
+        'Expires': '0',
+      },
+    });
   } catch (error) {
     console.error("Failed to load conversations:", error);
     return NextResponse.json(

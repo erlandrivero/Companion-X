@@ -79,14 +79,17 @@ export function ConversationList({
       
       if (response.ok) {
         setConversations(conversations.filter(c => c.id !== id));
+        console.log("✅ Conversation deleted successfully from database");
         
         // If we deleted the current conversation, start a new one
         if (currentConversationId === id) {
           onNewConversation();
         }
+      } else {
+        console.error("❌ Failed to delete conversation:", await response.text());
       }
     } catch (error) {
-      console.error("Failed to delete conversation:", error);
+      console.error("❌ Failed to delete conversation:", error);
     }
   };
 
