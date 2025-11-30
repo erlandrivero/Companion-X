@@ -795,10 +795,11 @@ Speak naturally. No formatting. Ever.` + webContext;
       await incrementQuestionsHandled(agentUsed._id!.toString());
     }
 
-    // Calculate cost
-    const cost = (claudeResponse.usage.inputTokens * 0.001 + 
-                  claudeResponse.usage.outputTokens * 0.005 +
-                  claudeResponse.usage.cachedTokens * 0.0001) / 1000;
+    // Calculate cost (Claude Haiku 4.5 pricing: $1.00/M input, $5.00/M output)
+    // Cached tokens: 90% discount (0.1x base price)
+    const cost = (claudeResponse.usage.inputTokens * 1.00 + 
+                  claudeResponse.usage.outputTokens * 5.00 +
+                  claudeResponse.usage.cachedTokens * 0.10) / 1_000_000;
 
     // Log usage
     await logUsage({
@@ -1012,12 +1013,13 @@ async function handleStreamingResponse(params: {
           await incrementQuestionsHandled(agentUsed._id!.toString());
         }
 
-        // Calculate cost
+        // Calculate cost (Claude Haiku 4.5 pricing: $1.00/M input, $5.00/M output)
+        // Cached tokens: 90% discount (0.1x base price)
         const cost =
-          (totalInputTokens * 0.001 +
-            totalOutputTokens * 0.005 +
-            totalCachedTokens * 0.0001) /
-          1000;
+          (totalInputTokens * 1.00 +
+            totalOutputTokens * 5.00 +
+            totalCachedTokens * 0.10) /
+          1_000_000;
 
         // Log usage
         await logUsage({
