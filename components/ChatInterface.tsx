@@ -6,6 +6,7 @@ import { MessageBubble } from "./MessageBubble";
 import { VoiceControls } from "./VoiceControls";
 import { ExportModal } from "./ExportModal";
 import { ArtifactViewer } from "./ArtifactViewer";
+import { ConversationList } from "./ConversationList";
 import { Message } from "@/types/conversation";
 import { Agent } from "@/types/agent";
 import { generateSessionId } from "@/lib/utils/formatters";
@@ -21,7 +22,8 @@ export function ChatInterface({ sessionId: initialSessionId, onAgentCreated }: C
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState("");
   const [isLoading, setIsLoading] = useState(false);
-  const [sessionId] = useState(initialSessionId || generateSessionId());
+  const [sessionId, setSessionId] = useState(initialSessionId || generateSessionId());
+  const [isLoadingConversation, setIsLoadingConversation] = useState(false);
   const [voiceEnabled, setVoiceEnabled] = useState(false);
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
   const [agentSuggestion, setAgentSuggestion] = useState<{topic: string; reasoning: string} | null>(null);
@@ -118,6 +120,42 @@ export function ChatInterface({ sessionId: initialSessionId, onAgentCreated }: C
       inputRef.current.style.height = `${inputRef.current.scrollHeight}px`;
     }
   }, [input]);
+
+  // Load conversation when sessionId changes
+  const loadConversation = async (convId: string) => {
+    setIsLoadingConversation(true);
+    try {
+      const response = await fetch(`/api/conversations/${convId}`);
+      if (response.ok) {
+        const conversation = await response.json();
+        console.log(`📚 Loaded conversation with ${conversation.messages.length} messages`);
+        setMessages(conversation.messages);
+        setSessionId(convId);
+      } else {
+        console.error("Failed to load conversation");
+      }
+    } catch (error) {
+      console.error("Error loading conversation:", error);
+    } finally {
+      setIsLoadingConversation(false);
+    }
+  };
+
+  // Start a new conversation
+  const startNewConversation = () => {
+    const newSessionId = generateSessionId();
+    console.log("🆕 Starting new conversation:", newSessionId);
+    setMessages([]);
+    setSessionId(newSessionId);
+    setInput("");
+    setAttachedFiles([]);
+    setAgentSuggestion(null);
+    setSkillSuggestion(null);
+    setCurrentAgent(null);
+    setPendingQuestion(null);
+    setPendingFiles([]);
+    inputRef.current?.focus();
+  };
 
   // File upload handlers
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -868,9 +906,28 @@ export function ChatInterface({ sessionId: initialSessionId, onAgentCreated }: C
   };
 
   return (
-    <div className="flex flex-col h-full bg-white dark:bg-gray-900">
-      {/* Chat Header */}
-      <div className="flex-shrink-0 border-b border-gray-200 dark:border-gray-800 px-6 py-4">
+    <div className="flex h-full bg-white dark:bg-gray-900">
+      {/* Conversation List Sidebar */}
+      <ConversationList
+        currentConversationId={sessionId}
+        onSelectConversation={loadConversation}
+        onNewConversation={startNewConversation}
+      />
+      
+      {/* Main Chat Area */}
+      <div className="flex flex-col flex-1">
+        {/* Loading Overlay */}
+        {isLoadingConversation && (
+          <div className="absolute inset-0 bg-white/80 dark:bg-gray-900/80 backdrop-blur-sm z-50 flex items-center justify-center">
+            <div className="flex flex-col items-center gap-3">
+              <Loader2 className="w-8 h-8 animate-spin text-purple-600" />
+              <p className="text-sm text-gray-600 dark:text-gray-400">Loading conversation...</p>
+            </div>
+          </div>
+        )}
+        
+        {/* Chat Header */}
+        <div className="flex-shrink-0 border-b border-gray-200 dark:border-gray-800 px-6 py-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 bg-gradient-to-br from-purple-500 to-blue-600 rounded-full flex items-center justify-center">
@@ -1302,6 +1359,7 @@ export function ChatInterface({ sessionId: initialSessionId, onAgentCreated }: C
           onClose={() => setShowArtifacts(false)}
         />
       )}
+      </div>
     </div>
   );
 }
