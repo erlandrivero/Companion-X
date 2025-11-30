@@ -402,6 +402,19 @@ export function ChatInterface({ sessionId: initialSessionId, onAgentCreated }: C
                 // Streaming complete
                 console.log("Streaming complete. Usage:", data.usage);
                 
+                // Fallback: If currentAgent wasn't set during streaming, try to get it from the last message
+                setMessages((prev) => {
+                  const lastMessage = prev[prev.length - 1];
+                  if (lastMessage && lastMessage.role === "assistant" && lastMessage.agentName) {
+                    setCurrentAgent({
+                      name: lastMessage.agentName,
+                      description: ""
+                    });
+                    console.log("🤖 Set agent from message data:", lastMessage.agentName);
+                  }
+                  return prev;
+                });
+                
                 // Check for artifacts in the response
                 if (data.artifacts && data.artifacts.length > 0) {
                   console.log(`📦 Received ${data.artifacts.length} artifact(s)`);
