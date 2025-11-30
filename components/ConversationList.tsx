@@ -47,7 +47,8 @@ export function ConversationList({
 
   const loadConversations = async () => {
     try {
-      const response = await fetch("/api/conversations");
+      // Fetch up to 200 recent conversations (increased from default 50)
+      const response = await fetch("/api/conversations?limit=200");
       if (response.ok) {
         const data = await response.json();
         setConversations(data);
@@ -137,6 +138,11 @@ export function ConversationList({
         <h2 className="font-semibold text-lg flex items-center gap-2">
           <MessageSquare className="w-5 h-5" />
           Conversations
+          {conversations.length > 0 && (
+            <span className="text-xs px-2 py-0.5 bg-purple-100 dark:bg-purple-900/30 text-purple-600 dark:text-purple-400 rounded-full">
+              {conversations.length}
+            </span>
+          )}
         </h2>
         <div className="flex items-center gap-1">
           <button
