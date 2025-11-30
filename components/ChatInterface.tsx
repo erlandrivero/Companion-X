@@ -458,6 +458,11 @@ export function ChatInterface({ sessionId: initialSessionId, onAgentCreated }: C
                 URL.revokeObjectURL(audioUrl);
                 currentAudioRef.current = null;
                 setIsAudioPlaying(false);
+                // Keep voice recognition stopped for 2 seconds after audio ends
+                console.log("🎤 Audio ended, waiting 2s before allowing voice restart");
+                setTimeout(() => {
+                  console.log("🎤 Voice recognition can now restart");
+                }, 2000);
               };
               audio.onerror = () => {
                 console.error("Audio playback error, falling back to Web Speech");
@@ -576,6 +581,11 @@ export function ChatInterface({ sessionId: initialSessionId, onAgentCreated }: C
       
       utterance.onend = () => {
         setIsAudioPlaying(false);
+        // Keep voice recognition stopped for 2 seconds after speech ends
+        console.log("🎤 Speech ended, waiting 2s before allowing voice restart");
+        setTimeout(() => {
+          console.log("🎤 Voice recognition can now restart");
+        }, 2000);
       };
       
       utterance.onerror = () => {

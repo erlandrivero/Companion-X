@@ -102,6 +102,12 @@ export const VoiceControls = forwardRef<{ restartListening: () => void; clearTra
       return;
     }
 
+    // CRITICAL: Don't start listening if AI is still speaking
+    if (isAudioPlaying) {
+      console.log("🚫 Cannot start listening - AI is still speaking");
+      return;
+    }
+
     // CRITICAL: Stop any playing voice FIRST
     stopSpeech(); // Stop Web Speech
     window.speechSynthesis.cancel(); // Extra safety
