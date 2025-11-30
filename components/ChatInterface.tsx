@@ -312,7 +312,10 @@ export function ChatInterface({ sessionId: initialSessionId, onAgentCreated }: C
                 fullResponse += data.text;
                 // Update the assistant message in real-time
                 setMessages((prev) => {
-                  console.log(`📝 Updating message at index ${assistantMessageIndex}, array length: ${prev.length}`);
+                  // Only log every 50th update to reduce console spam
+                  if (fullResponse.length % 50 === 0) {
+                    console.log(`📝 Updating message at index ${assistantMessageIndex}, length: ${fullResponse.length}`);
+                  }
                   const newMessages = [...prev];
                   if (assistantMessageIndex >= 0 && assistantMessageIndex < prev.length) {
                     // Verify this is still an assistant message (safety check)
@@ -406,11 +409,17 @@ export function ChatInterface({ sessionId: initialSessionId, onAgentCreated }: C
                 setMessages((prev) => {
                   const lastMessage = prev[prev.length - 1];
                   if (lastMessage && lastMessage.role === "assistant" && lastMessage.agentName) {
-                    setCurrentAgent({
-                      name: lastMessage.agentName,
-                      description: ""
+                    // Only set if currentAgent is not already set
+                    setCurrentAgent((current) => {
+                      if (!current || !current.name) {
+                        console.log("🤖 Set agent from message data:", lastMessage.agentName);
+                        return {
+                          name: lastMessage.agentName || "",
+                          description: ""
+                        };
+                      }
+                      return current;
                     });
-                    console.log("🤖 Set agent from message data:", lastMessage.agentName);
                   }
                   return prev;
                 });

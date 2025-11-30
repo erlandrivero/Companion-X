@@ -9,6 +9,7 @@ interface ConversationSummary {
   title: string;
   preview: string;
   messageCount: number;
+  agentName?: string;
   createdAt: Date;
   updatedAt: Date;
   agentsSuggested: string[];
@@ -188,10 +189,17 @@ export function ConversationList({
               >
                 <div className="flex items-start justify-between gap-2">
                   <div className="flex-1 min-w-0">
-                    <h3 className="font-medium text-sm truncate">
-                      {conv.title}
-                    </h3>
-                    <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 line-clamp-2">
+                    <div className="flex items-center gap-2 mb-1">
+                      <h3 className="font-medium text-sm truncate">
+                        {conv.title}
+                      </h3>
+                    </div>
+                    {conv.agentName && (
+                      <p className="text-xs text-purple-600 dark:text-purple-400 mb-1 truncate">
+                        {conv.agentName}
+                      </p>
+                    )}
+                    <p className="text-xs text-gray-500 dark:text-gray-400 line-clamp-2">
                       {conv.preview}
                     </p>
                     <div className="flex items-center gap-2 mt-2 text-xs text-gray-400">

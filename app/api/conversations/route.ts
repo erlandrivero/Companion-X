@@ -44,11 +44,16 @@ export async function GET(request: NextRequest) {
         ? lastMessage.content.substring(0, 100) + (lastMessage.content.length > 100 ? "..." : "")
         : "";
       
+      // Extract agent name from messages
+      const agentMessage = conv.messages.find(m => m.role === "assistant" && m.agentName);
+      const agentName = agentMessage?.agentName || "AI Assistant";
+      
       return {
         id: conv.sessionId,
         title,
         preview,
         messageCount,
+        agentName,
         createdAt: conv.createdAt,
         updatedAt: conv.updatedAt,
         agentsSuggested: conv.agentsSuggested,
