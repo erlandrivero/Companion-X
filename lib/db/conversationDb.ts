@@ -92,6 +92,19 @@ export async function getUserConversations(
 }
 
 /**
+ * Get total conversation count for a user
+ */
+export async function getUserConversationCount(
+  userId: string
+): Promise<number> {
+  const db = await getDatabase();
+  const collection = db.collection<Conversation>(COLLECTION_NAME);
+
+  const count = await collection.countDocuments({ userId });
+  return count;
+}
+
+/**
  * Delete conversation
  */
 export async function deleteConversation(

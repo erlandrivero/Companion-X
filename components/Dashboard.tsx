@@ -22,20 +22,20 @@ export function Dashboard() {
 
   const loadStats = async () => {
     try {
-      const [usageRes, agentsRes, conversationsRes] = await Promise.all([
+      const [usageRes, agentsRes, conversationCountRes] = await Promise.all([
         fetch("/api/usage"),
         fetch("/api/agents"),
-        fetch("/api/conversations"),
+        fetch("/api/conversations/count"),
       ]);
 
-      if (usageRes.ok && agentsRes.ok && conversationsRes.ok) {
+      if (usageRes.ok && agentsRes.ok && conversationCountRes.ok) {
         const usageData = await usageRes.json();
         const agentsData = await agentsRes.json();
-        const conversationsData = await conversationsRes.json();
+        const conversationCountData = await conversationCountRes.json();
 
         setStats({
           totalAgents: agentsData.agents?.length || 0,
-          totalConversations: conversationsData?.length || 0,
+          totalConversations: conversationCountData.count || 0,
           currentCost: usageData.currentCost || 0,
           monthlyBudget: usageData.monthlyBudget || 50,
           percentUsed: usageData.percentUsed || 0,
