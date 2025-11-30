@@ -8,9 +8,10 @@ import { AgentEditModal } from "@/components/AgentEditModal";
 import { AgentDetailModal } from "@/components/AgentDetailModal";
 import { SettingsModal } from "@/components/SettingsModal";
 import { TrialBanner } from "@/components/TrialBanner";
-import { Brain, Menu, X, Sparkles, CheckCircle } from "lucide-react";
+import { Brain, Menu, X, Sparkles, CheckCircle, BarChart3 } from "lucide-react";
 import { Agent } from "@/types/agent";
 import { useToast } from "@/contexts/ToastContext";
+import Link from "next/link";
 
 export default function Home() {
   const [selectedAgent, setSelectedAgent] = useState<Agent | null>(null);
@@ -121,7 +122,19 @@ export default function Home() {
               Companion X
             </h1>
           </div>
-          <UserMenu onSettingsClick={() => setIsSettingsOpen(true)} />
+          <div className="flex items-center gap-3">
+            <Link
+              href="/dashboard"
+              className="flex items-center gap-2 px-3 py-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg transition-colors"
+              title="View Usage Dashboard"
+            >
+              <BarChart3 className="w-5 h-5 text-gray-600 dark:text-gray-400" />
+              <span className="text-sm font-medium text-gray-700 dark:text-gray-300 hidden md:block">
+                Dashboard
+              </span>
+            </Link>
+            <UserMenu onSettingsClick={() => setIsSettingsOpen(true)} />
+          </div>
         </div>
       </header>
 

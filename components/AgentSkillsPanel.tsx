@@ -4,6 +4,8 @@ import { useState, useEffect } from "react";
 import { Plus, Edit2, Trash2, FileText, TrendingUp, Clock, Sparkles } from "lucide-react";
 import { AgentSkill } from "@/types/skill";
 import { SkillEditorModal } from "./SkillEditorModal";
+import { ConfirmModal } from "./ConfirmModal";
+import { useToast } from "@/contexts/ToastContext";
 
 interface AgentSkillsPanelProps {
   agentId: string;
@@ -27,6 +29,8 @@ export function AgentSkillsPanel({ agentId }: AgentSkillsPanelProps) {
   const [isLoadingSuggestions, setIsLoadingSuggestions] = useState(false);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [isGeneratingContent, setIsGeneratingContent] = useState(false);
+  const [deleteConfirm, setDeleteConfirm] = useState<{ id: string; name: string } | null>(null);
+  const { showToast } = useToast();
 
   useEffect(() => {
     loadSkills();
@@ -64,6 +68,7 @@ export function AgentSkillsPanel({ agentId }: AgentSkillsPanelProps) {
 
       if (response.ok) {
         await loadSkills();
+        showToast(isUpdate ? "Skill updated successfully!" : "Skill created successfully!", "success");
         setIsEditorOpen(false);
         setEditingSkill(null);
       }
@@ -73,18 +78,30 @@ export function AgentSkillsPanel({ agentId }: AgentSkillsPanelProps) {
     }
   };
 
-  const handleDeleteSkill = async (skillId: string) => {
-    // No confirmation needed - user can recreate skills easily with AI
+  const handleDeleteClick = (skillId: string, skillName: string) => {
+    setDeleteConfirm({ id: skillId, name: skillName });
+  };
+
+  const handleDeleteSkill = async () => {
+    if (!deleteConfirm) return;
+    
+    const { id } = deleteConfirm;
+    setDeleteConfirm(null);
+    
     try {
-      const response = await fetch(`/api/skills?id=${skillId}`, {
+      const response = await fetch(`/api/skills?id=${id}`, {
         method: "DELETE",
       });
 
       if (response.ok) {
         await loadSkills();
+        showToast("Skill deleted successfully!", "success");
+      } else {
+        showToast("Failed to delete skill", "error");
       }
     } catch (error) {
       console.error("Failed to delete skill:", error);
+      showToast("Failed to delete skill", "error");
     }
   };
 
@@ -411,7 +428,7 @@ export function AgentSkillsPanel({ agentId }: AgentSkillsPanelProps) {
                     <Edit2 className="w-4 h-4 text-gray-600 dark:text-gray-400" />
                   </button>
                   <button
-                    onClick={() => handleDeleteSkill(skill._id!.toString())}
+                    onClick={() => handleDeleteClick(skill._id!.toString(), skill.name)}
                     className="p-2 hover:bg-red-50 dark:hover:bg-red-900/20 rounded-lg transition-colors"
                     title="Delete skill"
                   >
@@ -434,6 +451,18 @@ export function AgentSkillsPanel({ agentId }: AgentSkillsPanelProps) {
         onSave={handleSaveSkill}
         skill={editingSkill}
         agentId={agentId}
+      />
+      
+      {/* Delete Confirmation Modal */}
+      <ConfirmModal
+        isOpen={!!deleteConfirm}
+        title="Delete Skill"
+        message={`Are you sure you want to delete "${deleteConfirm?.name}"? This action cannot be undone.`}
+        confirmText="Delete"
+        cancelText="Cancel"
+        variant="danger"
+        onConfirm={handleDeleteSkill}
+        onCancel={() => setDeleteConfirm(null)}
       />
     </div>
     </>
