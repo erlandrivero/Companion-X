@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { X, Save, FileText, Info } from "lucide-react";
+import { useToast } from "@/contexts/ToastContext";
 import { AgentSkill } from "@/types/skill";
 
 interface SkillEditorModalProps {
@@ -20,6 +21,7 @@ export function SkillEditorModal({ isOpen, onClose, onSave, skill, agentId }: Sk
   const [category, setCategory] = useState(skill?.metadata?.category || "");
   const [tags, setTags] = useState(skill?.metadata?.tags?.join(", ") || "");
   const [isSaving, setIsSaving] = useState(false);
+  const { showToast } = useToast();
 
   // Update form fields when skill prop changes
   useEffect(() => {
@@ -68,10 +70,11 @@ export function SkillEditorModal({ isOpen, onClose, onSave, skill, agentId }: Sk
       };
 
       await onSave(skillData);
+      showToast("Skill saved successfully!", "success");
       onClose();
     } catch (error) {
       console.error("Failed to save skill:", error);
-      alert("Failed to save skill");
+      showToast("Failed to save skill. Please try again.", "error");
     } finally {
       setIsSaving(false);
     }

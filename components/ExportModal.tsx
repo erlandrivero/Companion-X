@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { X, FileText, FileDown, Loader2, FileJson, FileCode, Table } from "lucide-react";
 import { Message } from "@/types/conversation";
+import { useToast } from "@/contexts/ToastContext";
 import { exportToPDF } from "@/lib/export/pdfExport";
 import { exportToDOCX } from "@/lib/export/docxExport";
 import { exportToMarkdown } from "@/lib/export/markdownExport";
@@ -27,6 +28,7 @@ export function ExportModal({
   const [includeTimestamps, setIncludeTimestamps] = useState(true);
   const [includeAgentInfo, setIncludeAgentInfo] = useState(true);
   const [customTitle, setCustomTitle] = useState(conversationTitle);
+  const { showToast } = useToast();
 
   if (!isOpen) return null;
 
@@ -44,7 +46,7 @@ export function ExportModal({
       }, 1000);
     } catch (error) {
       console.error("PDF export error:", error);
-      alert("Failed to export PDF. Please try again.");
+      showToast("Failed to export PDF. Please try again.", "error");
       setIsExporting(false);
     }
   };
@@ -63,7 +65,7 @@ export function ExportModal({
       }, 1000);
     } catch (error) {
       console.error("DOCX export error:", error);
-      alert("Failed to export DOCX. Please try again.");
+      showToast("Failed to export DOCX. Please try again.", "error");
       setIsExporting(false);
     }
   };
@@ -82,7 +84,7 @@ export function ExportModal({
       }, 1000);
     } catch (error) {
       console.error("Markdown export error:", error);
-      alert("Failed to export Markdown. Please try again.");
+      showToast("Failed to export Markdown. Please try again.", "error");
       setIsExporting(false);
     }
   };
@@ -101,7 +103,7 @@ export function ExportModal({
       }, 1000);
     } catch (error) {
       console.error("JSON export error:", error);
-      alert("Failed to export JSON. Please try again.");
+      showToast("Failed to export JSON. Please try again.", "error");
       setIsExporting(false);
     }
   };
@@ -120,7 +122,7 @@ export function ExportModal({
       }, 1000);
     } catch (error) {
       console.error("HTML export error:", error);
-      alert("Failed to export HTML. Please try again.");
+      showToast("Failed to export HTML. Please try again.", "error");
       setIsExporting(false);
     }
   };
@@ -139,7 +141,7 @@ export function ExportModal({
       }, 1000);
     } catch (error) {
       console.error("CSV export error:", error);
-      alert("Failed to export CSV. Please try again.");
+      showToast("Failed to export CSV. Please try again.", "error");
       setIsExporting(false);
     }
   };

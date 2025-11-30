@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { MessageSquare, Trash2, Plus, ChevronLeft, ChevronRight } from "lucide-react";
+import { ConfirmModal } from "./ConfirmModal";
 
 interface ConversationSummary {
   id: string;
@@ -27,6 +28,7 @@ export function ConversationList({
   const [conversations, setConversations] = useState<ConversationSummary[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [isCollapsed, setIsCollapsed] = useState(false);
+  const [deleteConfirm, setDeleteConfirm] = useState<{ id: string; title: string } | null>(null);
 
   useEffect(() => {
     loadConversations();
@@ -57,10 +59,16 @@ export function ConversationList({
     }
   };
 
-  const deleteConversation = async (id: string, e: React.MouseEvent) => {
-    e.stopPropagation(); // Prevent selecting the conversation
+  const handleDeleteClick = (id: string, title: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setDeleteConfirm({ id, title });
+  };
+
+  const deleteConversation = async () => {
+    if (!deleteConfirm) return;
     
-    if (!confirm("Delete this conversation?")) return;
+    const { id } = deleteConfirm;
+    setDeleteConfirm(null);
     
     try {
       const response = await fetch("/api/conversations", {
@@ -184,7 +192,7 @@ export function ConversationList({
                     </div>
                   </div>
                   <button
-                    onClick={(e) => deleteConversation(conv.id, e)}
+                    onClick={(e) => handleDeleteClick(conv.id, conv.title, e)}
                     className="p-1 hover:bg-red-100 dark:hover:bg-red-900/30 rounded transition-colors flex-shrink-0"
                     title="Delete conversation"
                   >
@@ -196,6 +204,18 @@ export function ConversationList({
           </div>
         )}
       </div>
+      
+      {/* Delete Confirmation Modal */}
+      <ConfirmModal
+        isOpen={!!deleteConfirm}
+        title="Delete Conversation"
+        message={`Are you sure you want to delete "${deleteConfirm?.title}"? This action cannot be undone.`}
+        confirmText="Delete"
+        cancelText="Cancel"
+        variant="danger"
+        onConfirm={deleteConversation}
+        onCancel={() => setDeleteConfirm(null)}
+      />
     </div>
   );
 }

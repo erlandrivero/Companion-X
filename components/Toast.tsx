@@ -25,16 +25,16 @@ export function Toast({ message, type = "info", duration = 3000, onClose }: Toas
     info: <Info className="w-5 h-5" />,
   };
 
-  const colors = {
-    success: "bg-green-500 text-white",
-    error: "bg-red-500 text-white",
-    warning: "bg-yellow-500 text-white",
-    info: "bg-blue-500 text-white",
+  const styles = {
+    success: "bg-gradient-to-r from-green-500 to-emerald-600 text-white",
+    error: "bg-gradient-to-r from-red-500 to-pink-600 text-white",
+    warning: "bg-gradient-to-r from-yellow-500 to-orange-500 text-white",
+    info: "bg-gradient-to-r from-purple-500 to-blue-600 text-white",
   };
 
   return (
     <div
-      className={`fixed bottom-4 right-4 z-50 ${colors[type]} rounded-lg shadow-lg p-4 flex items-center gap-3 min-w-[300px] max-w-md animate-slide-up`}
+      className={`${styles[type]} rounded-xl shadow-2xl p-4 flex items-center gap-3 min-w-[320px] max-w-md animate-slide-up backdrop-blur-sm`}
     >
       {icons[type]}
       <p className="flex-1 text-sm font-medium">{message}</p>

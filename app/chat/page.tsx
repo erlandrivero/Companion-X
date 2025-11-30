@@ -10,6 +10,7 @@ import { SettingsModal } from "@/components/SettingsModal";
 import { TrialBanner } from "@/components/TrialBanner";
 import { Brain, Menu, X, Sparkles, CheckCircle } from "lucide-react";
 import { Agent } from "@/types/agent";
+import { useToast } from "@/contexts/ToastContext";
 
 export default function Home() {
   const [selectedAgent, setSelectedAgent] = useState<Agent | null>(null);
@@ -20,6 +21,7 @@ export default function Home() {
   const [viewingAgent, setViewingAgent] = useState<Agent | null>(null);
   const [newAgentNotification, setNewAgentNotification] = useState<Agent | null>(null);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const { showToast } = useToast();
 
   // Load agents from API
   useEffect(() => {
@@ -41,28 +43,9 @@ export default function Home() {
   };
 
   const handleCreateAgent = async () => {
-    const topic = prompt("What topic should this agent specialize in?");
-    if (!topic) return;
-
-    try {
-      const response = await fetch("/api/agents", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ topic }),
-      });
-
-      if (response.ok) {
-        const data = await response.json();
-        setAgents((prev) => [...prev, data.agent]);
-        alert(`Agent "${data.agent.name}" created successfully!`);
-      } else {
-        const error = await response.json();
-        alert(`Failed to create agent: ${error.error}`);
-      }
-    } catch (error) {
-      console.error("Create agent error:", error);
-      alert("Failed to create agent. Please try again.");
-    }
+    // Note: This function is not currently used in the UI
+    // Agent creation happens through ChatInterface
+    showToast("Agent creation happens through chat interactions", "info");
   };
 
   const handleDeleteAgent = async (agentId: string) => {
@@ -78,11 +61,11 @@ export default function Home() {
         }
       } else {
         const error = await response.json();
-        alert(`Failed to delete agent: ${error.error}`);
+        showToast(`Failed to delete agent: ${error.error}`, "error");
       }
     } catch (error) {
       console.error("Delete agent error:", error);
-      alert("Failed to delete agent. Please try again.");
+      showToast("Failed to delete agent. Please try again.", "error");
     }
   };
 
@@ -103,14 +86,15 @@ export default function Home() {
             agent._id?.toString() === editingAgent._id?.toString() ? data.agent : agent
           )
         );
+        showToast("Agent updated successfully!", "success");
         setEditingAgent(null);
       } else {
         const error = await response.json();
-        alert(`Failed to update agent: ${error.error}`);
+        showToast(`Failed to update agent: ${error.error}`, "error");
       }
     } catch (error) {
       console.error("Update agent error:", error);
-      alert("Failed to update agent. Please try again.");
+      showToast("Failed to update agent. Please try again.", "error");
     }
   };
 
