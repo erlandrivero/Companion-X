@@ -32,6 +32,7 @@ export interface UserSettings {
     maxCostPerUser: number;
     requireAuth: boolean;
   };
+  monthlyBudget?: number; // User-defined monthly budget
   createdAt: Date;
   updatedAt: Date;
 }

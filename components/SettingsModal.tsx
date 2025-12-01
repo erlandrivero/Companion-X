@@ -41,6 +41,9 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
   const [responseLength, setResponseLength] = useState<"concise" | "normal" | "detailed">("concise");
   const [temperature, setTemperature] = useState(0.3);
   
+  // Budget Settings state
+  const [monthlyBudget, setMonthlyBudget] = useState(50);
+  
   // Load existing settings when modal opens
   useEffect(() => {
     if (isOpen) {
@@ -112,6 +115,11 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
           setTemperature(data.ai.temperature || 0.3);
         }
         
+        // Load budget settings
+        if (data.monthlyBudget !== undefined) {
+          setMonthlyBudget(data.monthlyBudget);
+        }
+        
         // Show if API keys are configured
         if (data.apiKeys) {
           setShowApiKeys(data.apiKeys.hasAnthropic || data.apiKeys.hasElevenLabs);
@@ -172,6 +180,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
         continuousListening
       },
       ai: { responseLength, temperature },
+      monthlyBudget,
     };
 
     console.log("💾 Saving settings:", {
@@ -707,6 +716,25 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                     </div>
                     <p className="text-xs text-gray-500 mt-1">
                       Lower = more consistent, Higher = more creative
+                    </p>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium mb-2">
+                      Monthly Budget ($)
+                    </label>
+                    <input
+                      type="number"
+                      min="1"
+                      max="1000"
+                      step="1"
+                      value={monthlyBudget}
+                      onChange={(e) => setMonthlyBudget(Number(e.target.value))}
+                      className="w-full px-4 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800"
+                      placeholder="50"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">
+                      Set your monthly API usage budget for tracking purposes
                     </p>
                   </div>
                 </div>

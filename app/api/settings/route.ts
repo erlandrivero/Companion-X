@@ -42,6 +42,7 @@ export async function GET(request: NextRequest) {
         maxCostPerUser: 5.0,
         requireAuth: true,
       },
+      monthlyBudget: settings?.monthlyBudget || 50,
     });
   } catch (error) {
     console.error("Settings GET error:", error);

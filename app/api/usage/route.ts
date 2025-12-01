@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { getUserUsageStats, getCurrentMonthCost } from "@/lib/db/usageDb";
+import { getUserSettings } from "@/lib/db/settingsDb";
 
 // GET /api/usage - Get user's usage statistics
 export async function GET(request: NextRequest) {
@@ -15,7 +16,10 @@ export async function GET(request: NextRequest) {
 
     const stats = await getUserUsageStats(userId, period as "current" | "history");
     const currentCost = await getCurrentMonthCost(userId);
-    const monthlyBudget = parseFloat(process.env.DEFAULT_MONTHLY_BUDGET || "50");
+    
+    // Get user's monthly budget from settings, fallback to 50
+    const userSettings = await getUserSettings(userId);
+    const monthlyBudget = userSettings?.monthlyBudget || 50;
 
     return NextResponse.json({
       stats,
