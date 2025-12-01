@@ -550,52 +550,43 @@ export async function POST(request: NextRequest) {
       const firstName = nameParts[0];
       const lastName = nameParts[nameParts.length - 1];
       
-      // Try multiple search strategies to find Medium articles
-      console.log("📰 Trying multiple search strategies for Medium articles...");
+      // Try multiple search strategies to find publications
+      console.log("📰 Trying multiple search strategies for publications...");
       
-      // Strategy 1: UNRESTRICTED search for very recent articles (catches custom domains)
-      const query1Unrestricted = `"${fullName}" article published`;
-      console.log("  Strategy 1 (unrestricted, recent):", query1Unrestricted);
-      publishedResults = await searchWeb(query1Unrestricted, 10, braveApiKey, "pm"); // Past month - most recent
+      // Strategy 1: Academic/Research publications (ResearchGate, Google Scholar, etc.)
+      const query1Academic = `"${fullName}" (site:researchgate.net OR site:scholar.google.com OR site:*.edu OR publication OR research OR paper)`;
+      console.log("  Strategy 1 (academic):", query1Academic);
+      publishedResults = await searchWeb(query1Academic, 10, braveApiKey);
       
-      // Strategy 2: If no results, try with site restrictions
+      // Strategy 2: If no academic results, try Medium/blog articles (past year for better coverage)
       if (publishedResults.results.length === 0) {
-        const query1 = `"${fullName}" (site:medium.com OR site:*.medium.com OR article OR blog)`;
-        console.log("  Strategy 2 (site-restricted, recent):", query1);
-        publishedResults = await searchWeb(query1, 5, braveApiKey, "pm");
+        const query2Medium = `"${fullName}" (site:medium.com OR site:*.medium.com OR article OR blog)`;
+        console.log("  Strategy 2 (Medium, past year):", query2Medium);
+        publishedResults = await searchWeb(query2Medium, 10, braveApiKey, "py");
       }
       
-      // Strategy 3: If still no recent articles, try past year unrestricted
+      // Strategy 3: UNRESTRICTED search for very recent articles (catches custom domains)
       if (publishedResults.results.length === 0) {
-        console.log("  Strategy 3 (unrestricted, past year):", query1Unrestricted);
-        publishedResults = await searchWeb(query1Unrestricted, 10, braveApiKey, "py"); // Past year, more results
+        const query3Unrestricted = `"${fullName}" article published`;
+        console.log("  Strategy 3 (unrestricted, recent):", query3Unrestricted);
+        publishedResults = await searchWeb(query3Unrestricted, 10, braveApiKey, "pm"); // Past month - most recent
       }
       
-      // Strategy 3: First and last name separately (if no results from strategy 1 & 2)
+      // Strategy 4: First and last name separately
       if (publishedResults.results.length === 0) {
-        const query2 = `${firstName} ${lastName} site:medium.com`;
-        console.log("  Strategy 3 (name parts):", query2);
-        const results2 = await searchWeb(query2, 10, braveApiKey, "py");
-        publishedResults = results2;
+        const query4 = `${firstName} ${lastName} (publication OR research OR article)`;
+        console.log("  Strategy 4 (name parts):", query4);
+        publishedResults = await searchWeb(query4, 10, braveApiKey);
       }
       
-      // Strategy 4: Just last name + medium (if still no results)
+      // Strategy 5: Just last name + research keywords (if still no results)
       if (publishedResults.results.length === 0) {
-        const query3 = `${lastName} site:medium.com author`;
-        console.log("  Strategy 4 (last name):", query3);
-        const results3 = await searchWeb(query3, 10, braveApiKey, "py");
-        publishedResults = results3;
+        const query5 = `${lastName} research author publication`;
+        console.log("  Strategy 5 (last name + keywords):", query5);
+        publishedResults = await searchWeb(query5, 10, braveApiKey);
       }
       
-      // Strategy 5: Broader Medium search with context (last resort)
-      if (publishedResults.results.length === 0) {
-        const query4 = `${fullName} medium article AI data`;
-        console.log("  Strategy 5 (broad):", query4);
-        const results4 = await searchWeb(query4, 10, braveApiKey, "py");
-        publishedResults = results4;
-      }
-      
-      console.log(`📊 Found ${publishedResults.results.length} Medium articles after trying multiple strategies`);
+      console.log(`📊 Found ${publishedResults.results.length} publications after trying multiple strategies`);
     } else {
       const generalQuery = `${correctedMessage} site:medium.com OR site:towardsdatascience.com OR article OR blog`;
       console.log("📰 Searching for general published content");
