@@ -9,15 +9,6 @@
 [[plugins]]
   package = "@netlify/plugin-nextjs"
 
-[functions]
-  # Increase timeout for agent creation (max 26 seconds on free tier)
-  node_bundler = "esbuild"
-  
-[[functions]]
-  # Specific timeout for agent creation endpoint
-  path = "api/agents/create-suggested"
-  node_bundler = "esbuild"
-
 [[headers]]
   for = "/*"
   [headers.values]
