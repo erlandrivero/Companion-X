@@ -27,14 +27,14 @@ export async function getUserUsageStats(
   const db = await getDatabase();
   const collection = db.collection<UsageLog>(COLLECTION_NAME);
 
-  // Get current month stats
-  const currentMonth = new Date().toISOString().slice(0, 7); // YYYY-MM
-  const startOfMonth = new Date(currentMonth + "-01");
+  // Get last 30 days stats (rolling window to avoid timezone issues)
+  const thirtyDaysAgo = new Date();
+  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
   const currentMonthLogs = await collection
     .find({
       userId,
-      timestamp: { $gte: startOfMonth },
+      timestamp: { $gte: thirtyDaysAgo },
     })
     .toArray();
 
