@@ -209,13 +209,10 @@ export function Dashboard() {
           <h4 className="font-semibold mb-2">Create Agent</h4>
           <p className="text-sm opacity-90">Add a specialized AI agent</p>
         </Link>
-        <button 
-          onClick={() => showToast("Detailed usage statistics coming soon!", "info")}
-          className="bg-gradient-to-r from-green-500 to-emerald-600 text-white rounded-xl p-6 hover:shadow-lg transition-all"
-        >
+        <Link href="/usage" className="bg-gradient-to-r from-green-500 to-emerald-600 text-white rounded-xl p-6 hover:shadow-lg transition-all block">
           <h4 className="font-semibold mb-2">View Usage</h4>
           <p className="text-sm opacity-90">Check detailed statistics</p>
-        </button>
+        </Link>
         <button 
           onClick={recalculateCosts}
           disabled={isRecalculating}
