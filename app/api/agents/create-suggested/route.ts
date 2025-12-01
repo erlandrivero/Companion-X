@@ -10,8 +10,26 @@ export async function POST(request: NextRequest) {
   try {
     const session = await auth();
     
-    // For local testing without auth, use a default user
+    // Check if user is authenticated
+    // In production, require authentication. In development, allow fallback.
+    const isDevelopment = process.env.NODE_ENV === 'development' || process.env.NEXT_PUBLIC_APP_URL?.includes('localhost');
+    
+    if (!session?.user?.email && !isDevelopment) {
+      console.error("❌ No session found in production");
+      return NextResponse.json(
+        { error: "Authentication required. Please log in again." },
+        { status: 401 }
+      );
+    }
+    
     const userId = session?.user?.email || "demo@localhost.dev";
+    
+    console.log("🔐 Auth check (create-suggested):", {
+      hasSession: !!session,
+      userId,
+      isDevelopment,
+      environment: process.env.NODE_ENV,
+    });
 
     const { topic, originalQuestion } = await request.json();
 
@@ -26,7 +44,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    console.log("✅ Topic validated, performing web search...");
+    console.log("✅ Topic validated, getting user settings...");
     
     // Get user's API key from settings
     const userSettings = await getUserSettings(userId);
@@ -35,46 +53,24 @@ export async function POST(request: NextRequest) {
     
     console.log("🔑 Using API key:", userApiKey ? "Custom key" : "Environment key");
     
-    // Perform comprehensive web search to gather information about the topic
+    // Perform a single, fast web search (reduced from 3 searches to avoid timeout)
     const searchQuery = originalQuestion || topic;
     console.log("🔍 Searching for:", searchQuery);
     
-    // Primary search
-    const searchResults = await searchWeb(searchQuery, 5, braveApiKey);
-    
-    // Search for published work (articles, blogs, papers) - works for any topic
-    const publishedQuery = `${searchQuery} article OR blog OR published OR wrote`;
-    console.log("📰 Searching for published work:", publishedQuery);
-    const publishedResults = await searchWeb(publishedQuery, 5, braveApiKey);
-    
-    // Search for academic/professional content
-    const academicQuery = `${searchQuery} research OR paper OR publication`;
-    console.log("📚 Searching for academic content:", academicQuery);
-    const academicResults = await searchWeb(academicQuery, 3, braveApiKey);
-    
-    // Combine and deduplicate results
-    const seenUrls = new Set<string>();
-    const uniqueResults = [
-      ...searchResults.results,
-      ...publishedResults.results,
-      ...academicResults.results
-    ].filter(result => {
-      if (seenUrls.has(result.url)) {
-        return false;
-      }
-      seenUrls.add(result.url);
-      return true;
-    });
-    
-    const allResults = {
-      results: uniqueResults,
-      query: searchQuery,
-      totalResults: uniqueResults.length
-    };
-    
-    const searchContext = formatSearchResults(allResults);
-    
-    console.log(`📊 Found ${uniqueResults.length} unique results (${searchResults.results.length} general, ${publishedResults.results.length} published, ${academicResults.results.length} academic)`);
+    let searchContext = "";
+    try {
+      // Single search with timeout protection
+      const searchResults = await Promise.race([
+        searchWeb(searchQuery, 5, braveApiKey),
+        new Promise((_, reject) => setTimeout(() => reject(new Error("Search timeout")), 5000))
+      ]) as Awaited<ReturnType<typeof searchWeb>>;
+      
+      searchContext = formatSearchResults(searchResults);
+      console.log(`📊 Found ${searchResults.results.length} results`);
+    } catch (error) {
+      console.warn("⚠️ Web search failed or timed out, proceeding without search results:", error);
+      searchContext = "No web search results available.";
+    }
     
     // Generate agent profile with user's API key and web search context
     const contextDescription = originalQuestion 

@@ -31,12 +31,20 @@ export async function getUserUsageStats(
   const thirtyDaysAgo = new Date();
   thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
+  console.log("📅 getUserUsageStats - 30 days ago:", thirtyDaysAgo.toISOString());
+
   const currentMonthLogs = await collection
     .find({
       userId,
       timestamp: { $gte: thirtyDaysAgo },
     })
     .toArray();
+
+  console.log("📊 getUserUsageStats - Found logs:", currentMonthLogs.length);
+  if (currentMonthLogs.length > 0) {
+    console.log("📊 First log:", currentMonthLogs[0].timestamp);
+    console.log("📊 Last log:", currentMonthLogs[currentMonthLogs.length - 1].timestamp);
+  }
 
   const currentMonthStats = calculateMonthlyStats(currentMonthLogs);
 

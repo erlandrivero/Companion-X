@@ -465,61 +465,11 @@ export function ChatInterface({ sessionId: initialSessionId, onAgentCreated }: C
           voiceControlsRef.current.stopListening();
         }
         
+        // Use Web Speech API directly (no server call needed)
         try {
-          // Try ElevenLabs first (server-side)
-          const voiceResponse = await fetch("/api/voice/synthesize", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ text: fullResponse }),
-          });
-
-          if (voiceResponse.ok) {
-            const service = voiceResponse.headers.get("X-Voice-Service");
-            console.log("Voice service used:", service);
-            
-            if (service === "elevenlabs") {
-              // Play ElevenLabs audio
-              const audioData = await voiceResponse.arrayBuffer();
-              const audioBlob = new Blob([audioData], { type: "audio/mpeg" });
-              const audioUrl = URL.createObjectURL(audioBlob);
-              
-              const audio = new Audio(audioUrl);
-              audio.volume = 1.0;
-              currentAudioRef.current = audio;
-              setIsAudioPlaying(true);
-              
-              audio.onended = () => {
-                URL.revokeObjectURL(audioUrl);
-                currentAudioRef.current = null;
-                setIsAudioPlaying(false);
-                // Keep voice recognition stopped for 2 seconds after audio ends
-                console.log("🎤 Audio ended, waiting 2s before allowing voice restart");
-                setTimeout(() => {
-                  console.log("🎤 Voice recognition can now restart");
-                }, 2000);
-              };
-              audio.onerror = () => {
-                console.error("Audio playback error, falling back to Web Speech");
-                URL.revokeObjectURL(audioUrl);
-                currentAudioRef.current = null;
-                setIsAudioPlaying(false);
-                // Fallback to Web Speech
-                speakWithWebSpeech(fullResponse);
-              };
-              
-              await audio.play();
-            } else {
-              // Server returned Web Speech, use it client-side
-              speakWithWebSpeech(fullResponse);
-            }
-          } else {
-            // API failed, fallback to Web Speech
-            speakWithWebSpeech(fullResponse);
-          }
+          speakWithWebSpeech(fullResponse);
         } catch (voiceError) {
           console.error("Voice synthesis error:", voiceError);
-          // Fallback to Web Speech on any error
-          speakWithWebSpeech(fullResponse);
         }
       }
     } catch (error) {
@@ -940,10 +890,39 @@ export function ChatInterface({ sessionId: initialSessionId, onAgentCreated }: C
           }, 500);
         }
       } else {
-        console.error("Failed to create agent");
+        const errorData = await response.json().catch(() => ({ error: "Unknown error" }));
+        console.error("Failed to create agent:", errorData);
+        
+        // Show error message to user
+        const errorMessage: Message = {
+          role: "assistant",
+          content: response.status === 401 
+            ? "⚠️ Your session has expired. Please refresh the page and log in again to create agents."
+            : `⚠️ Failed to create agent: ${errorData.error || "Unknown error"}. Please try again.`,
+          agentUsed: null,
+          timestamp: new Date(),
+          voiceEnabled: false,
+        };
+        setMessages((prev) => [...prev, errorMessage]);
+        setAgentSuggestion(null);
+        setPendingQuestion(null);
+        setPendingFiles([]);
       }
     } catch (error) {
       console.error("Error creating agent:", error);
+      
+      // Show error message to user
+      const errorMessage: Message = {
+        role: "assistant",
+        content: "⚠️ An unexpected error occurred while creating the agent. Please check your internet connection and try again.",
+        agentUsed: null,
+        timestamp: new Date(),
+        voiceEnabled: false,
+      };
+      setMessages((prev) => [...prev, errorMessage]);
+      setAgentSuggestion(null);
+      setPendingQuestion(null);
+      setPendingFiles([]);
     } finally {
       setIsCreatingAgent(false);
     }
