@@ -47,66 +47,72 @@ export async function POST(request: NextRequest) {
     console.log("✅ Topic validated, getting user settings...");
     
     // Get user's API key from settings
-    const userSettings = await getUserSettings(userId);
-    const userApiKey = userSettings?.apiKeys?.anthropic;
-    const braveApiKey = userSettings?.apiKeys?.braveSearch;
-    
-    console.log("🔑 Using API key:", userApiKey ? "Custom key" : "Environment key");
-    
-    // Perform a single, fast web search (reduced from 3 searches to avoid timeout)
-    const searchQuery = originalQuestion || topic;
-    console.log("🔍 Searching for:", searchQuery);
-    
-    let searchContext = "";
+    let userSettings, userApiKey, braveApiKey;
     try {
-      // Single search with timeout protection
-      const searchResults = await Promise.race([
-        searchWeb(searchQuery, 5, braveApiKey),
-        new Promise((_, reject) => setTimeout(() => reject(new Error("Search timeout")), 5000))
-      ]) as Awaited<ReturnType<typeof searchWeb>>;
-      
-      searchContext = formatSearchResults(searchResults);
-      console.log(`📊 Found ${searchResults.results.length} results`);
+      userSettings = await getUserSettings(userId);
+      userApiKey = userSettings?.apiKeys?.anthropic;
+      braveApiKey = userSettings?.apiKeys?.braveSearch;
+      console.log("🔑 Using API key:", userApiKey ? "Custom key" : "Environment key");
     } catch (error) {
-      console.warn("⚠️ Web search failed or timed out, proceeding without search results:", error);
-      searchContext = "No web search results available.";
+      console.error("❌ Failed to get user settings:", error);
+      return NextResponse.json(
+        { error: "Failed to retrieve user settings" },
+        { status: 500 }
+      );
     }
     
-    // Generate agent profile with user's API key and web search context
-    const contextDescription = originalQuestion 
-      ? `User asked: "${originalQuestion}". Create an agent to handle this type of question.
-
-WEB SEARCH RESULTS (including Medium articles and published content):
-${searchContext}
-
-IMPORTANT INSTRUCTIONS:
-- Use the above web search results to create an accurate, well-informed agent profile
-- If Medium articles or published content are found, the agent should reference these specific publications when responding
-- The agent should be knowledgeable about the person's actual work, articles, and contributions
-- Include specific article titles, topics, and insights from the search results in the agent's knowledge base`
-      : `WEB SEARCH RESULTS (including Medium articles and published content):
-${searchContext}
-
-IMPORTANT INSTRUCTIONS:
-- Use the above web search results to create an accurate, well-informed agent profile
-- If Medium articles or published content are found, the agent should reference these specific publications when responding
-- The agent should be knowledgeable about the person's actual work, articles, and contributions`;
+    // Skip web search to avoid timeout - create agent with basic context
+    console.log("⚡ Skipping web search for faster agent creation");
+    const searchContext = "No web search results (optimized for speed).";
     
-    const agentProfile = await generateAgentProfile(topic, contextDescription, userApiKey);
+    // Generate agent profile with user's API key
+    console.log("🤖 Generating agent profile...");
+    let agentProfile;
+    try {
+      const contextDescription = originalQuestion 
+        ? `User asked: "${originalQuestion}". Create an agent to handle this type of question.`
+        : `Create an agent for: ${topic}`;
+      
+      agentProfile = await generateAgentProfile(topic, contextDescription, userApiKey);
+      console.log("✅ Agent profile generated:", agentProfile.name);
+    } catch (error) {
+      console.error("❌ Failed to generate agent profile:", error);
+      return NextResponse.json(
+        { 
+          error: "Failed to generate agent profile",
+          details: error instanceof Error ? error.message : "Unknown error"
+        },
+        { status: 500 }
+      );
+    }
 
-    // Create agent
-    const agent = await createAgent(
-      {
-        name: agentProfile.name,
-        description: agentProfile.description,
-        expertise: agentProfile.expertise,
-        systemPrompt: agentProfile.systemPrompt,
-        knowledgeBase: agentProfile.knowledgeBase,
-        capabilities: agentProfile.capabilities,
-        conversationStyle: agentProfile.conversationStyle,
-      },
-      userId
-    );
+    // Create agent in database
+    console.log("💾 Saving agent to database...");
+    let agent;
+    try {
+      agent = await createAgent(
+        {
+          name: agentProfile.name,
+          description: agentProfile.description,
+          expertise: agentProfile.expertise,
+          systemPrompt: agentProfile.systemPrompt,
+          knowledgeBase: agentProfile.knowledgeBase,
+          capabilities: agentProfile.capabilities,
+          conversationStyle: agentProfile.conversationStyle,
+        },
+        userId
+      );
+      console.log("✅ Agent created successfully:", agent._id);
+    } catch (error) {
+      console.error("❌ Failed to save agent to database:", error);
+      return NextResponse.json(
+        { 
+          error: "Failed to save agent",
+          details: error instanceof Error ? error.message : "Unknown error"
+        },
+        { status: 500 }
+      );
+    }
 
     return NextResponse.json({ agent }, { status: 201 });
   } catch (error) {
