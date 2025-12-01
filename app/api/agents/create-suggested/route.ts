@@ -44,64 +44,34 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    console.log("✅ Topic validated, getting user settings...");
+    console.log("✅ Topic validated");
     
-    // Get user's API key from settings
-    let userSettings, userApiKey, braveApiKey;
-    try {
-      userSettings = await getUserSettings(userId);
-      userApiKey = userSettings?.apiKeys?.anthropic;
-      braveApiKey = userSettings?.apiKeys?.braveSearch;
-      console.log("🔑 Using API key:", userApiKey ? "Custom key" : "Environment key");
-    } catch (error) {
-      console.error("❌ Failed to get user settings:", error);
-      return NextResponse.json(
-        { error: "Failed to retrieve user settings" },
-        { status: 500 }
-      );
-    }
-    
-    // Skip web search to avoid timeout - create agent with basic context
-    console.log("⚡ Skipping web search for faster agent creation");
-    const searchContext = "No web search results (optimized for speed).";
-    
-    // Generate agent profile with user's API key
-    console.log("🤖 Generating agent profile...");
-    let agentProfile;
-    try {
-      const contextDescription = originalQuestion 
-        ? `User asked: "${originalQuestion}". Create an agent to handle this type of question.`
-        : `Create an agent for: ${topic}`;
-      
-      agentProfile = await generateAgentProfile(topic, contextDescription, userApiKey);
-      console.log("✅ Agent profile generated:", agentProfile.name);
-    } catch (error) {
-      console.error("❌ Failed to generate agent profile:", error);
-      return NextResponse.json(
-        { 
-          error: "Failed to generate agent profile",
-          details: error instanceof Error ? error.message : "Unknown error"
-        },
-        { status: 500 }
-      );
-    }
+    // Create a simple agent profile without external API calls for debugging
+    console.log("🤖 Creating simple agent profile...");
+    const agentProfile = {
+      name: topic.substring(0, 50), // Use topic as name
+      description: `Expert agent for ${topic}`,
+      expertise: [topic],
+      systemPrompt: `You are an expert on ${topic}. Provide helpful, accurate information.`,
+      knowledgeBase: {
+        facts: originalQuestion ? [`User asked: ${originalQuestion}`] : [`Expert on ${topic}`],
+        sources: [],
+        lastUpdated: new Date()
+      },
+      capabilities: ["Answer questions", "Provide information"],
+      conversationStyle: {
+        tone: "Professional",
+        vocabulary: "Clear and accessible",
+        responseLength: "Concise"
+      }
+    };
+    console.log("✅ Agent profile created:", agentProfile.name);
 
     // Create agent in database
     console.log("💾 Saving agent to database...");
     let agent;
     try {
-      agent = await createAgent(
-        {
-          name: agentProfile.name,
-          description: agentProfile.description,
-          expertise: agentProfile.expertise,
-          systemPrompt: agentProfile.systemPrompt,
-          knowledgeBase: agentProfile.knowledgeBase,
-          capabilities: agentProfile.capabilities,
-          conversationStyle: agentProfile.conversationStyle,
-        },
-        userId
-      );
+      agent = await createAgent(agentProfile, userId);
       console.log("✅ Agent created successfully:", agent._id);
     } catch (error) {
       console.error("❌ Failed to save agent to database:", error);
