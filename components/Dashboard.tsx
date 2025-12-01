@@ -150,7 +150,7 @@ export function Dashboard() {
           <h3 className="text-2xl font-bold text-gray-900 dark:text-white">
             ${stats.currentCost.toFixed(2)}
           </h3>
-          <p className="text-sm text-gray-500 dark:text-gray-400">This Month</p>
+          <p className="text-sm text-gray-500 dark:text-gray-400">Last 30 Days</p>
         </div>
 
         {/* Budget Usage */}

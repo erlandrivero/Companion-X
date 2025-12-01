@@ -198,19 +198,20 @@ export async function getUsageBreakdown(
 }
 
 /**
- * Get total cost for current month
+ * Get total cost for current month (uses last 30 days for better accuracy)
  */
 export async function getCurrentMonthCost(userId: string): Promise<number> {
   const db = await getDatabase();
   const collection = db.collection<UsageLog>(COLLECTION_NAME);
 
-  const currentMonth = new Date().toISOString().slice(0, 7);
-  const startOfMonth = new Date(currentMonth + "-01");
+  // Use last 30 days instead of calendar month to avoid timezone issues
+  const thirtyDaysAgo = new Date();
+  thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
   const logs = await collection
     .find({
       userId,
-      timestamp: { $gte: startOfMonth },
+      timestamp: { $gte: thirtyDaysAgo },
     })
     .toArray();
 

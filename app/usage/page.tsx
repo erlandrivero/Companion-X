@@ -86,7 +86,7 @@ export default function UsagePage() {
             <p className="text-3xl font-bold text-gray-900 dark:text-white">
               ${usage?.currentCost.toFixed(2) || "0.00"}
             </p>
-            <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">This month</p>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Last 30 days</p>
           </div>
 
           <div className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700">
@@ -112,7 +112,7 @@ export default function UsagePage() {
             <p className="text-3xl font-bold text-gray-900 dark:text-white">
               {usage?.stats.currentMonth.requestCount || 0}
             </p>
-            <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">This month</p>
+            <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Last 30 days</p>
           </div>
 
           <div className="bg-white dark:bg-gray-800 rounded-xl p-6 border border-gray-200 dark:border-gray-700">
