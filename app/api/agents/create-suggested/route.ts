@@ -44,34 +44,57 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    console.log("✅ Topic validated");
+    console.log("✅ Topic validated, getting user settings...");
     
-    // Create a simple agent profile without external API calls for debugging
-    console.log("🤖 Creating simple agent profile...");
-    const agentProfile = {
-      name: topic.substring(0, 50), // Use topic as name
-      description: `Expert agent for ${topic}`,
-      expertise: [topic],
-      systemPrompt: `You are an expert on ${topic}. Provide helpful, accurate information.`,
-      knowledgeBase: {
-        facts: originalQuestion ? [`User asked: ${originalQuestion}`] : [`Expert on ${topic}`],
-        sources: [],
-        lastUpdated: new Date()
-      },
-      capabilities: ["Answer questions", "Provide information"],
-      conversationStyle: {
-        tone: "Professional",
-        vocabulary: "Clear and accessible",
-        responseLength: "Concise"
-      }
-    };
-    console.log("✅ Agent profile created:", agentProfile.name);
+    // Get user's API key from settings
+    let userSettings, userApiKey;
+    try {
+      userSettings = await getUserSettings(userId);
+      userApiKey = userSettings?.apiKeys?.anthropic;
+      console.log("🔑 Using API key:", userApiKey ? "Custom key" : "Environment key");
+    } catch (error) {
+      console.error("❌ Failed to get user settings:", error);
+      // Continue with environment key
+      userApiKey = undefined;
+    }
+    
+    // Generate agent profile with Claude API (skip web search for speed)
+    console.log("🤖 Generating agent profile with Claude...");
+    let agentProfile;
+    try {
+      const contextDescription = originalQuestion 
+        ? `User asked: "${originalQuestion}". Create an agent to handle this type of question.`
+        : `Create an expert agent for: ${topic}`;
+      
+      agentProfile = await generateAgentProfile(topic, contextDescription, userApiKey);
+      console.log("✅ Agent profile generated:", agentProfile.name);
+    } catch (error) {
+      console.error("❌ Failed to generate agent profile:", error);
+      return NextResponse.json(
+        { 
+          error: "Failed to generate agent profile",
+          details: error instanceof Error ? error.message : "Unknown error"
+        },
+        { status: 500 }
+      );
+    }
 
     // Create agent in database
     console.log("💾 Saving agent to database...");
     let agent;
     try {
-      agent = await createAgent(agentProfile, userId);
+      agent = await createAgent(
+        {
+          name: agentProfile.name,
+          description: agentProfile.description,
+          expertise: agentProfile.expertise,
+          systemPrompt: agentProfile.systemPrompt,
+          knowledgeBase: agentProfile.knowledgeBase,
+          capabilities: agentProfile.capabilities,
+          conversationStyle: agentProfile.conversationStyle,
+        },
+        userId
+      );
       console.log("✅ Agent created successfully:", agent._id);
     } catch (error) {
       console.error("❌ Failed to save agent to database:", error);
