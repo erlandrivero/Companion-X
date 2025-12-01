@@ -1,5 +1,5 @@
 import { Agent } from "@/types/agent";
-import { sendMessageSonnet } from "./claude";
+import { sendMessageHaiku, sendMessageSonnet } from "./claude";
 
 /**
  * Generate a comprehensive agent profile using Claude Sonnet
@@ -127,15 +127,15 @@ Design a comprehensive, production-quality agent profile with a sophisticated sy
 
   try {
     console.log("🤖 Generating agent profile for:", topic);
-    const response = await sendMessageSonnet(userPrompt, {
+    const response = await sendMessageHaiku(userPrompt, {
       systemPrompt,
-      enableCaching: true, // Cache the system prompt (it's reused)
-      maxTokens: 8192, // Increased for richer prompts
+      enableCaching: false, // Haiku is fast enough without caching
+      maxTokens: 4096, // Reduced for faster response
       temperature: 0.7,
       apiKey, // Pass user's custom API key
     });
 
-    console.log("✅ Claude Sonnet response received, length:", response.content.length);
+    console.log("✅ Claude Haiku response received, length:", response.content.length);
 
     // Extract JSON from response
     const jsonMatch = response.content.match(/\{[\s\S]*\}/);
