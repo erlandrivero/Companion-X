@@ -1,8 +1,17 @@
-import { MongoClient, Db } from "mongodb";
+import { MongoClient, Db, MongoClientOptions } from "mongodb";
 
 // Use a dummy URI if not set (for build time)
 const uri = process.env.MONGODB_URI || "mongodb://localhost:27017/ai-agent-manager";
-const options = {};
+
+// Serverless-optimized connection options
+const options: MongoClientOptions = {
+  maxPoolSize: 10,
+  minPoolSize: 0,
+  maxIdleTimeMS: 10000,
+  connectTimeoutMS: 10000,
+  socketTimeoutMS: 45000,
+  serverSelectionTimeoutMS: 10000,
+};
 
 let client: MongoClient;
 let clientPromise: Promise<MongoClient>;
