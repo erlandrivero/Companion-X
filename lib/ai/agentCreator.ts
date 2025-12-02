@@ -127,15 +127,15 @@ Design a comprehensive, production-quality agent profile with a sophisticated sy
 
   try {
     console.log("🤖 Generating agent profile for:", topic);
-    const response = await sendMessageHaiku(userPrompt, {
+    const response = await sendMessageSonnet(userPrompt, {
       systemPrompt,
-      enableCaching: false, // Haiku is fast enough without caching
-      maxTokens: 4096, // Reduced for faster response
+      enableCaching: true,
+      maxTokens: 8192,
       temperature: 0.7,
       apiKey, // Pass user's custom API key
     });
 
-    console.log("✅ Claude Haiku response received, length:", response.content.length);
+    console.log("✅ Claude Sonnet response received, length:", response.content.length);
 
     // Extract JSON from response
     const jsonMatch = response.content.match(/\{[\s\S]*\}/);
