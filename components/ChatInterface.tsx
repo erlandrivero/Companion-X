@@ -660,6 +660,8 @@ export function ChatInterface({ sessionId: initialSessionId, onAgentCreated }: C
   };
 
   const voiceSendTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const lastSentTranscriptRef = useRef<string>("");
+  const lastSentTimeRef = useRef<number>(0);
 
   const handleVoiceTranscript = (transcript: string, isFinal: boolean = false) => {
     // If AI is speaking, interrupt it
@@ -676,6 +678,17 @@ export function ChatInterface({ sessionId: initialSessionId, onAgentCreated }: C
     
     // If final, wait before auto-sending (gives user time to continue)
     if (isFinal && transcript.trim()) {
+      const trimmedTranscript = transcript.trim();
+      const now = Date.now();
+      
+      // MOBILE FIX: Prevent duplicate sends
+      // Skip if same transcript was sent within last 3 seconds
+      if (trimmedTranscript === lastSentTranscriptRef.current && 
+          now - lastSentTimeRef.current < 3000) {
+        console.log("⚠️ Duplicate transcript detected, skipping:", trimmedTranscript);
+        return;
+      }
+      
       // Clear input immediately when final
       setInput("");
       setIsListening(false);
@@ -687,8 +700,19 @@ export function ChatInterface({ sessionId: initialSessionId, onAgentCreated }: C
       
       // Wait before sending (use user's delay setting)
       voiceSendTimeoutRef.current = setTimeout(() => {
+        // Double-check we haven't already sent this
+        if (trimmedTranscript === lastSentTranscriptRef.current && 
+            Date.now() - lastSentTimeRef.current < 3000) {
+          console.log("⚠️ Duplicate transcript in timeout, skipping");
+          return;
+        }
+        
+        // Track what we're sending
+        lastSentTranscriptRef.current = trimmedTranscript;
+        lastSentTimeRef.current = Date.now();
+        
         // Use the main sendMessage function to ensure all logic is consistent
-        sendMessage(transcript.trim());
+        sendMessage(trimmedTranscript);
         
         // Clear the voice transcript after sending to prevent it from persisting
         if (voiceControlsRef.current) {
