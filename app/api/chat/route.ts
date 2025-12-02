@@ -558,31 +558,29 @@ export async function POST(request: NextRequest) {
       const firstName = nameParts[0];
       const lastName = nameParts[nameParts.length - 1];
       
-      // Try multiple search strategies to find publications
-      console.log("📰 Trying multiple search strategies for publications...", isAskingForLatest ? "(LATEST - trying past day first)" : "");
+      // Try multiple search strategies to find Medium articles
+      console.log("📰 Trying multiple search strategies for Medium articles...", isAskingForLatest ? "(LATEST - trying past day first)" : "");
       
-      // Strategy 1: If asking for latest, try VERY RECENT first (past day)
+      // Strategy 1: UNRESTRICTED search - catches custom domains and all Medium articles
+      const query1Unrestricted = `"${fullName}" article published`;
       if (isAskingForLatest) {
-        const query1Recent = `"${fullName}" (site:medium.com OR site:*.medium.com) article`;
-        console.log("  Strategy 1 (Medium, PAST DAY):", query1Recent);
-        publishedResults = await searchWeb(query1Recent, 10, braveApiKey, "pd"); // Past day - most recent
+        // For latest: try progressively wider time windows
+        console.log("  Strategy 1 (unrestricted, PAST DAY):", query1Unrestricted);
+        publishedResults = await searchWeb(query1Unrestricted, 10, braveApiKey, "pd"); // Past day
         
-        // Strategy 2: If nothing in past day, try past week
         if (publishedResults.results.length === 0) {
-          console.log("  Strategy 2 (Medium, PAST WEEK):", query1Recent);
-          publishedResults = await searchWeb(query1Recent, 10, braveApiKey, "pw"); // Past week
+          console.log("  Strategy 1b (unrestricted, PAST WEEK):", query1Unrestricted);
+          publishedResults = await searchWeb(query1Unrestricted, 10, braveApiKey, "pw"); // Past week
         }
         
-        // Strategy 3: If nothing in past week, try past month
         if (publishedResults.results.length === 0) {
-          console.log("  Strategy 3 (Medium, PAST MONTH):", query1Recent);
-          publishedResults = await searchWeb(query1Recent, 10, braveApiKey, "pm"); // Past month
+          console.log("  Strategy 1c (unrestricted, PAST MONTH):", query1Unrestricted);
+          publishedResults = await searchWeb(query1Unrestricted, 10, braveApiKey, "pm"); // Past month
         }
       } else {
-        // Strategy 1: Academic/Research publications (ResearchGate, Google Scholar, etc.)
-        const query1Academic = `"${fullName}" (site:researchgate.net OR site:scholar.google.com OR site:*.edu OR publication OR research OR paper)`;
-        console.log("  Strategy 1 (academic):", query1Academic);
-        publishedResults = await searchWeb(query1Academic, 10, braveApiKey);
+        // For general publication search: past month
+        console.log("  Strategy 1 (unrestricted, recent):", query1Unrestricted);
+        publishedResults = await searchWeb(query1Unrestricted, 10, braveApiKey, "pm");
       }
       
       // Strategy 2: If no academic results, try Medium/blog articles (past year for better coverage)
