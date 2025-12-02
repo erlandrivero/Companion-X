@@ -126,6 +126,10 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
           setHasExistingAnthropicKey(data.apiKeys.hasAnthropic || false);
           setHasExistingElevenLabsKey(data.apiKeys.hasElevenLabs || false);
           setHasExistingVoiceId(data.apiKeys.hasElevenLabsVoiceId || false);
+          // Reset removal states when loading
+          setRemoveAnthropicKey(false);
+          setRemoveElevenLabsKey(false);
+          setRemoveVoiceId(false);
         }
       }
     } catch (error) {
@@ -338,7 +342,7 @@ export function SettingsModal({ isOpen, onClose }: SettingsModalProps) {
                               }
                             }}
                             placeholder={hasExistingAnthropicKey ? "••••••••••••••••" : "sk-ant-api03-..."}
-                            disabled={removeAnthropicKey}
+                            disabled={removeAnthropicKey && hasExistingAnthropicKey}
                             className="flex-1 px-4 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed"
                           />
                           {hasExistingAnthropicKey && (

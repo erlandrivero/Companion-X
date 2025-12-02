@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { generateAgentProfile } from "@/lib/ai/agentCreator";
 import { createAgent } from "@/lib/db/agentDb";
-import { getUserSettings } from "@/lib/db/settingsDb";
+import { getApiKeys } from "@/lib/db/settingsDb";
 import { searchWeb, formatSearchResults } from "@/lib/search/webSearch";
 
 // POST /api/agents/create-suggested - Create agent from suggestion
@@ -44,19 +44,11 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    console.log("✅ Topic validated, getting user settings...");
+    console.log("✅ Topic validated, getting API keys...");
     
-    // Get user's API key from settings
-    let userSettings, userApiKey;
-    try {
-      userSettings = await getUserSettings(userId);
-      userApiKey = userSettings?.apiKeys?.anthropic;
-      console.log("🔑 Using API key:", userApiKey ? "Custom key" : "Environment key");
-    } catch (error) {
-      console.error("❌ Failed to get user settings:", error);
-      // Continue with environment key
-      userApiKey = undefined;
-    }
+    // Get user's API key with fallback to environment variable
+    const { anthropic: userApiKey } = await getApiKeys(userId);
+    console.log("🔑 Using API key:", userApiKey ? (userApiKey === process.env.ANTHROPIC_API_KEY ? "Environment key" : "Custom key") : "None");
     
     // Generate agent profile with Claude API (skip web search for speed)
     console.log("🤖 Generating agent profile with Claude...");

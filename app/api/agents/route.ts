@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { auth } from "@/lib/auth";
 import { getUserAgents, createAgent, deleteAgent, updateAgent } from "@/lib/db/agentDb";
 import { generateAgentProfile } from "@/lib/ai/agentCreator";
+import { getApiKeys } from "@/lib/db/settingsDb";
 
 // GET /api/agents - Get all user's agents
 export async function GET(request: NextRequest) {
@@ -48,8 +49,11 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Get user's API key with fallback to environment variable
+    const { anthropic: userApiKey } = await getApiKeys(userId);
+
     // Generate agent profile
-    const agentProfile = await generateAgentProfile(topic, context || "");
+    const agentProfile = await generateAgentProfile(topic, context || "", userApiKey);
 
     // Create agent
     const agent = await createAgent(

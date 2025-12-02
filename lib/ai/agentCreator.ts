@@ -130,7 +130,7 @@ Design a comprehensive, production-quality agent profile with a sophisticated sy
     const response = await sendMessageSonnet(userPrompt, {
       systemPrompt,
       enableCaching: true,
-      maxTokens: 8192,
+      maxTokens: 2048,
       temperature: 0.7,
       apiKey, // Pass user's custom API key
     });
