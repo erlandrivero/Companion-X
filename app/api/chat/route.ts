@@ -633,9 +633,9 @@ export async function POST(request: NextRequest) {
     
     // Combine all results, removing duplicates by URL
     const seenUrls = new Set<string>();
-    const uniqueResults = [
+    let uniqueResults = [
+      ...publishedResults.results, // Prioritize publication results first
       ...searchResults.results,
-      ...publishedResults.results,
       ...academicResults.results,
       ...pricingResults.results
     ].filter(result => {
@@ -645,6 +645,58 @@ export async function POST(request: NextRequest) {
       seenUrls.add(result.url);
       return true;
     });
+    
+    // If user asked for latest, sort by date (most recent first)
+    if (isAskingForLatest && uniqueResults.length > 0) {
+      console.log("📅 Sorting results by date (most recent first)");
+      uniqueResults = uniqueResults.sort((a, b) => {
+        // Results with dates come before those without
+        if (a.publishedDate && !b.publishedDate) return -1;
+        if (!a.publishedDate && b.publishedDate) return 1;
+        if (!a.publishedDate && !b.publishedDate) return 0;
+        
+        // Parse date strings (e.g., "2 days ago", "1 week ago", "Oct 13, 2023")
+        const getDateValue = (dateStr: string): number => {
+          const lower = dateStr.toLowerCase();
+          
+          // Handle relative dates (e.g., "5 hours ago", "2 days ago")
+          if (lower.includes('hour')) {
+            const hours = parseInt(lower) || 0;
+            return Date.now() - (hours * 60 * 60 * 1000);
+          }
+          if (lower.includes('day')) {
+            const days = parseInt(lower) || 0;
+            return Date.now() - (days * 24 * 60 * 60 * 1000);
+          }
+          if (lower.includes('week')) {
+            const weeks = parseInt(lower) || 0;
+            return Date.now() - (weeks * 7 * 24 * 60 * 60 * 1000);
+          }
+          if (lower.includes('month')) {
+            const months = parseInt(lower) || 0;
+            return Date.now() - (months * 30 * 24 * 60 * 60 * 1000);
+          }
+          if (lower.includes('year')) {
+            const years = parseInt(lower) || 0;
+            return Date.now() - (years * 365 * 24 * 60 * 60 * 1000);
+          }
+          
+          // Try parsing as actual date
+          const parsed = new Date(dateStr);
+          return isNaN(parsed.getTime()) ? 0 : parsed.getTime();
+        };
+        
+        const dateA = getDateValue(a.publishedDate!);
+        const dateB = getDateValue(b.publishedDate!);
+        
+        return dateB - dateA; // Most recent first
+      });
+      
+      console.log("📊 Top 3 results after sorting:", uniqueResults.slice(0, 3).map(r => ({
+        title: r.title.substring(0, 50),
+        date: r.publishedDate
+      })));
+    }
     
     const allResults = {
       results: uniqueResults,
