@@ -44,7 +44,13 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    console.log("✅ Topic validated, getting API keys...");
+    // Extract clean topic name from suggestion (before colon if present)
+    // e.g., "Elon Musk - Tesla CEO: An AI agent..." -> "Elon Musk - Tesla CEO"
+    const colonIndex = topic.indexOf(':');
+    const cleanTopic = colonIndex > 0 ? topic.substring(0, colonIndex).trim() : topic;
+    const suggestionContext = colonIndex > 0 ? topic.substring(colonIndex + 1).trim() : '';
+    
+    console.log("✅ Topic validated:", { cleanTopic, hasSuggestionContext: !!suggestionContext });
     
     // Get user's API key with fallback to environment variable
     const { anthropic: userApiKey } = await getApiKeys(userId);
@@ -54,11 +60,19 @@ export async function POST(request: NextRequest) {
     console.log("🤖 Generating agent profile with Claude...");
     let agentProfile;
     try {
-      const contextDescription = originalQuestion 
-        ? `User asked: "${originalQuestion}". Create an agent to handle this type of question.`
-        : `Create an expert agent for: ${topic}`;
+      // Build context from original question and suggestion description
+      let contextDescription = '';
+      if (originalQuestion) {
+        contextDescription += `User asked: "${originalQuestion}". `;
+      }
+      if (suggestionContext) {
+        contextDescription += suggestionContext;
+      }
+      if (!contextDescription) {
+        contextDescription = `Create an expert agent for: ${cleanTopic}`;
+      }
       
-      agentProfile = await generateAgentProfile(topic, contextDescription, userApiKey);
+      agentProfile = await generateAgentProfile(cleanTopic, contextDescription, userApiKey);
       console.log("✅ Agent profile generated:", agentProfile.name);
     } catch (error) {
       console.error("❌ Failed to generate agent profile:", error);

@@ -154,7 +154,7 @@ Analyze and determine the best match.`;
           },
           suggestion: {
             type: "string",
-            description: "Suggested agent topic or skill name if applicable",
+            description: "SHORT name only (2-5 words max). For agents: 'Elon Musk - Tesla CEO'. For skills: 'Electric Vehicle Technology'. NO descriptions or explanations here.",
           },
         },
         required: ["matchedAgentIndex", "confidence", "reasoning", "suggestNewAgent", "suggestNewSkill"],
