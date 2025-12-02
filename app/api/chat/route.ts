@@ -550,7 +550,7 @@ export async function POST(request: NextRequest) {
       message: correctedMessage 
     });
     
-    let publishedResults: Awaited<ReturnType<typeof searchWeb>>;
+    let publishedResults: Awaited<ReturnType<typeof searchWeb>> = { results: [], query: '', totalResults: 0 };
     if (agentUsed && isAskingAboutPublications) {
       // Extract person name from agent name (e.g., "Dr. Ernesto Lee - Title" -> "Ernesto Lee")
       const fullName = agentUsed.name.split('-')[0].trim().replace(/^(Dr\.|Professor|Mr\.|Ms\.|Mrs\.)\s*/i, '');
