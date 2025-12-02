@@ -561,26 +561,35 @@ export async function POST(request: NextRequest) {
       // Try multiple search strategies to find Medium articles
       console.log("📰 Trying multiple search strategies for Medium articles...", isAskingForLatest ? "(LATEST - trying past day first)" : "");
       
-      // Strategy 1: UNRESTRICTED search - catches custom domains and all Medium articles
-      const query1Unrestricted = `"${fullName}" article published`;
+      // Strategy 1: For LATEST, try Medium site search first (better for very recent articles)
       if (isAskingForLatest) {
-        // For latest: try progressively wider time windows
-        console.log("  Strategy 1 (unrestricted, PAST DAY):", query1Unrestricted);
-        publishedResults = await searchWeb(query1Unrestricted, 10, braveApiKey, "pd"); // Past day
+        // Direct Medium search catches articles that haven't been indexed by general search yet
+        const queryMediumLatest = `"${fullName}" site:medium.com`;
+        console.log("  Strategy 1 (Medium site, PAST DAY):", queryMediumLatest);
+        publishedResults = await searchWeb(queryMediumLatest, 10, braveApiKey, "pd"); // Past day
         
         if (publishedResults.results.length === 0) {
-          console.log("  Strategy 1b (unrestricted, PAST WEEK):", query1Unrestricted);
-          publishedResults = await searchWeb(query1Unrestricted, 10, braveApiKey, "pw"); // Past week
+          console.log("  Strategy 1b (Medium site, PAST WEEK):", queryMediumLatest);
+          publishedResults = await searchWeb(queryMediumLatest, 10, braveApiKey, "pw"); // Past week
         }
         
         if (publishedResults.results.length === 0) {
-          console.log("  Strategy 1c (unrestricted, PAST MONTH):", query1Unrestricted);
-          publishedResults = await searchWeb(query1Unrestricted, 10, braveApiKey, "pm"); // Past month
+          console.log("  Strategy 1c (Medium site, PAST MONTH):", queryMediumLatest);
+          publishedResults = await searchWeb(queryMediumLatest, 10, braveApiKey, "pm"); // Past month
         }
-      } else {
-        // For general publication search: past month
-        console.log("  Strategy 1 (unrestricted, recent):", query1Unrestricted);
-        publishedResults = await searchWeb(query1Unrestricted, 10, braveApiKey, "pm");
+      }
+      
+      // Strategy 2: UNRESTRICTED search - catches custom domains and all Medium articles
+      if (publishedResults.results.length === 0) {
+        const query1Unrestricted = `"${fullName}" article published`;
+        if (isAskingForLatest) {
+          console.log("  Strategy 2 (unrestricted, PAST MONTH):", query1Unrestricted);
+          publishedResults = await searchWeb(query1Unrestricted, 10, braveApiKey, "pm");
+        } else {
+          // For general publication search: past month
+          console.log("  Strategy 1 (unrestricted, recent):", query1Unrestricted);
+          publishedResults = await searchWeb(query1Unrestricted, 10, braveApiKey, "pm");
+        }
       }
       
       // Strategy 2: If no academic results, try Medium/blog articles (past year for better coverage)
