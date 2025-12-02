@@ -558,17 +558,26 @@ export async function POST(request: NextRequest) {
       const firstName = nameParts[0];
       const lastName = nameParts[nameParts.length - 1];
       
-      // Determine time filter based on whether user wants latest
-      const timeFilter = isAskingForLatest ? "py" : undefined; // Past year for latest, no filter otherwise
-      
       // Try multiple search strategies to find publications
-      console.log("📰 Trying multiple search strategies for publications...", isAskingForLatest ? "(LATEST - past year filter)" : "");
+      console.log("📰 Trying multiple search strategies for publications...", isAskingForLatest ? "(LATEST - trying past day first)" : "");
       
-      // Strategy 1: Medium first if asking for latest (Medium is more current than academic sites)
+      // Strategy 1: If asking for latest, try VERY RECENT first (past day)
       if (isAskingForLatest) {
-        const query1Medium = `"${fullName}" (site:medium.com OR site:*.medium.com) article`;
-        console.log("  Strategy 1 (Medium, LATEST):", query1Medium);
-        publishedResults = await searchWeb(query1Medium, 10, braveApiKey, "py"); // Past year
+        const query1Recent = `"${fullName}" (site:medium.com OR site:*.medium.com) article`;
+        console.log("  Strategy 1 (Medium, PAST DAY):", query1Recent);
+        publishedResults = await searchWeb(query1Recent, 10, braveApiKey, "pd"); // Past day - most recent
+        
+        // Strategy 2: If nothing in past day, try past week
+        if (publishedResults.results.length === 0) {
+          console.log("  Strategy 2 (Medium, PAST WEEK):", query1Recent);
+          publishedResults = await searchWeb(query1Recent, 10, braveApiKey, "pw"); // Past week
+        }
+        
+        // Strategy 3: If nothing in past week, try past month
+        if (publishedResults.results.length === 0) {
+          console.log("  Strategy 3 (Medium, PAST MONTH):", query1Recent);
+          publishedResults = await searchWeb(query1Recent, 10, braveApiKey, "pm"); // Past month
+        }
       } else {
         // Strategy 1: Academic/Research publications (ResearchGate, Google Scholar, etc.)
         const query1Academic = `"${fullName}" (site:researchgate.net OR site:scholar.google.com OR site:*.edu OR publication OR research OR paper)`;
