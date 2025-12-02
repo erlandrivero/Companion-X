@@ -535,10 +535,18 @@ export async function POST(request: NextRequest) {
                                        messageLower.includes('published') ||
                                        messageLower.includes('blog');
     
+    // Check if user is asking for LATEST/RECENT publications
+    const isAskingForLatest = messageLower.includes('latest') || 
+                               messageLower.includes('last') ||
+                               messageLower.includes('recent') ||
+                               messageLower.includes('newest') ||
+                               messageLower.includes('new');
+    
     console.log("🔍 Publication search check:", { 
       hasAgent: !!agentUsed, 
       agentName: agentUsed?.name,
       isAskingAboutPublications,
+      isAskingForLatest,
       message: correctedMessage 
     });
     
@@ -550,13 +558,23 @@ export async function POST(request: NextRequest) {
       const firstName = nameParts[0];
       const lastName = nameParts[nameParts.length - 1];
       
-      // Try multiple search strategies to find publications
-      console.log("📰 Trying multiple search strategies for publications...");
+      // Determine time filter based on whether user wants latest
+      const timeFilter = isAskingForLatest ? "py" : undefined; // Past year for latest, no filter otherwise
       
-      // Strategy 1: Academic/Research publications (ResearchGate, Google Scholar, etc.)
-      const query1Academic = `"${fullName}" (site:researchgate.net OR site:scholar.google.com OR site:*.edu OR publication OR research OR paper)`;
-      console.log("  Strategy 1 (academic):", query1Academic);
-      publishedResults = await searchWeb(query1Academic, 10, braveApiKey);
+      // Try multiple search strategies to find publications
+      console.log("📰 Trying multiple search strategies for publications...", isAskingForLatest ? "(LATEST - past year filter)" : "");
+      
+      // Strategy 1: Medium first if asking for latest (Medium is more current than academic sites)
+      if (isAskingForLatest) {
+        const query1Medium = `"${fullName}" (site:medium.com OR site:*.medium.com) article`;
+        console.log("  Strategy 1 (Medium, LATEST):", query1Medium);
+        publishedResults = await searchWeb(query1Medium, 10, braveApiKey, "py"); // Past year
+      } else {
+        // Strategy 1: Academic/Research publications (ResearchGate, Google Scholar, etc.)
+        const query1Academic = `"${fullName}" (site:researchgate.net OR site:scholar.google.com OR site:*.edu OR publication OR research OR paper)`;
+        console.log("  Strategy 1 (academic):", query1Academic);
+        publishedResults = await searchWeb(query1Academic, 10, braveApiKey);
+      }
       
       // Strategy 2: If no academic results, try Medium/blog articles (past year for better coverage)
       if (publishedResults.results.length === 0) {
@@ -627,10 +645,7 @@ export async function POST(request: NextRequest) {
       totalResults: uniqueResults.length
     };
     
-    const isAskingForLatest = correctedMessage.toLowerCase().includes('latest') || 
-                               correctedMessage.toLowerCase().includes('last') ||
-                               correctedMessage.toLowerCase().includes('recent') ||
-                               correctedMessage.toLowerCase().includes('newest');
+    // isAskingForLatest already defined above at line 539
     
     const webContext = allResults.results.length > 0 
       ? `\n\n=== CURRENT WEB SEARCH RESULTS ===
