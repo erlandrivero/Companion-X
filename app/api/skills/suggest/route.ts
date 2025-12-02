@@ -3,7 +3,7 @@ import { auth } from "@/lib/auth";
 import { suggestSkillsForAgent, generateSkillContent, getCommonSkillsForDomain } from "@/lib/ai/skillSuggester";
 import { getAgent } from "@/lib/db/agentDb";
 import { getAgentSkills } from "@/lib/db/skillDb";
-import { getUserSettings } from "@/lib/db/settingsDb";
+import { getApiKeys } from "@/lib/db/settingsDb";
 
 export async function POST(request: NextRequest) {
   try {
@@ -41,10 +41,9 @@ export async function POST(request: NextRequest) {
         );
       }
       
-      // Get user's API keys
-      const userSettings = await getUserSettings(userId);
-      const userApiKey = userSettings?.apiKeys?.anthropic;
-      const braveApiKey = userSettings?.apiKeys?.braveSearch;
+      // Get user's API keys with fallback to environment variables
+      const { anthropic: userApiKey } = await getApiKeys(userId);
+      const braveApiKey = process.env.BRAVE_SEARCH_API_KEY;
       
       const content = await generateSkillContent(
         skillName,
@@ -61,11 +60,10 @@ export async function POST(request: NextRequest) {
       console.log("🤖 Generating AI suggestions for agent:", agent.name);
       console.log("📋 Expertise:", agent.expertise);
       
-      // Get user's API key
-      const userSettings = await getUserSettings(userId);
-      const userApiKey = userSettings?.apiKeys?.anthropic;
+      // Get user's API key with fallback to environment variable
+      const { anthropic: userApiKey } = await getApiKeys(userId);
       
-      console.log("🔑 Using API key:", userApiKey ? "Custom key" : "Environment key");
+      console.log("🔑 Using API key:", userApiKey ? "Available" : "None");
       
       // Primary: Use AI to generate custom suggestions
       const recentQuestions: string[] = []; // TODO: Load from conversation history
@@ -92,8 +90,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Default: Same as common_skills for now
-    const userSettings = await getUserSettings(userId);
-    const userApiKey = userSettings?.apiKeys?.anthropic;
+    const { anthropic: userApiKey } = await getApiKeys(userId);
     const recentQuestions: string[] = [];
     
     const suggestions = await suggestSkillsForAgent(

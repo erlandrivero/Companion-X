@@ -69,8 +69,8 @@ The agent should be:
 
 Respond in JSON format with this exact structure:
 {
-  "name": "<agent name>",
-  "description": "<1-2 sentence description>",
+  "name": "<SHORT agent name - max 50 characters, e.g. 'Dr. Ernesto Lee - AI Expert' or 'Elon Musk - Tesla CEO'>",
+  "description": "<1-2 sentence description - this is separate from the name>",
   "expertise": ["<area1>", "<area2>", ...],
   "systemPrompt": "<detailed system prompt for the agent>",
   "knowledgeBase": {
