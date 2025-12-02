@@ -53,6 +53,7 @@ export const VoiceControls = forwardRef<{ restartListening: () => void; clearTra
   
   const recognitionManager = useRef<SpeechRecognitionManager | null>(null);
   const fullTranscriptRef = useRef<string>("");
+  const lastProcessedResultRef = useRef<string>(""); // Track last processed result to prevent duplicates
 
   useEffect(() => {
     // Initialize speech recognition
@@ -116,12 +117,22 @@ export const VoiceControls = forwardRef<{ restartListening: () => void; clearTra
     setError(null);
     setTranscript("");
     fullTranscriptRef.current = "";
+    lastProcessedResultRef.current = "";
 
     recognitionManager.current.startListening(
       (result) => {
         // Accumulate final results
         if (result.isFinal) {
-          fullTranscriptRef.current += " " + result.transcript;
+          // MOBILE FIX: Check for duplicate final results
+          // Mobile browsers can fire multiple isFinal events with the same text
+          const newTranscript = result.transcript.trim();
+          if (newTranscript === lastProcessedResultRef.current) {
+            console.log("⚠️ Duplicate final result detected, skipping:", newTranscript);
+            return;
+          }
+          lastProcessedResultRef.current = newTranscript;
+          
+          fullTranscriptRef.current += " " + newTranscript;
           const finalText = fullTranscriptRef.current.trim();
           setTranscript(finalText);
           // Send final transcript to parent
@@ -129,7 +140,7 @@ export const VoiceControls = forwardRef<{ restartListening: () => void; clearTra
             onTranscript(finalText, true);
           }
         } else {
-          // Show interim results
+          // Show interim results (don't track these for duplicates)
           const interimText = (fullTranscriptRef.current + " " + result.transcript).trim();
           setTranscript(interimText);
           // Send interim transcript to parent for real-time display
