@@ -99,13 +99,14 @@ export async function generateSkillContent(
 ): Promise<string> {
   // Perform web search to get current information about the skill topic
   console.log("🔍 Searching web for skill information:", skillName);
+  const startSearch = Date.now();
   const searchQuery = `${skillName} ${skillDescription}`;
   const searchResults = await searchWeb(searchQuery, 5, braveApiKey);
+  console.log(`📊 Web search took ${Date.now() - startSearch}ms, found ${searchResults.results.length} results`);
+  
   const webContext = searchResults.results.length > 0
     ? `\n\nWEB SEARCH RESULTS:\n${formatSearchResults(searchResults)}\n\nUse this current information to create an accurate, well-informed skill.`
     : "";
-  
-  console.log(`📊 Found ${searchResults.results.length} search results for skill`);
 
   const prompt = `Generate a comprehensive skill document in SKILL.md format.
 
@@ -153,11 +154,14 @@ Create a detailed skill document following this structure:
 IMPORTANT: Make the skill COMPREHENSIVE and CONFIDENT. If it's a "European Weather" skill, it should explicitly state it covers ALL European countries. Don't be vague.`;
 
   try {
+    console.log("🤖 Calling Haiku for skill content...");
+    const startHaiku = Date.now();
     const response = await sendMessageHaiku(prompt, {
       temperature: 0.5,
-      maxTokens: 3000,
+      maxTokens: 1500,
       apiKey, // Pass user's custom API key
     });
+    console.log(`✅ Haiku responded in ${Date.now() - startHaiku}ms`);
 
     return response.content;
   } catch (error) {
